@@ -1,1 +1,40 @@
-/* You can add global styles to this file, and also import other style files */
+* { box-sizing: border-box; }
+html { min-width: 320px; min-height: 100%; }
+body { min-width: 320px; min-height: 100vh; margin: 0; color: #1d2b24; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+button { font-family: inherit; }
+.form-card { margin-top: 16px; padding: 30px; border: 1px solid #e7ebe7; border-radius: 20px; background: #fff; box-shadow: 0 18px 50px #27382c0a; }
+.form-heading { margin-bottom: 26px; }
+.required-note { color: #7c8881; font-size: 11px; }
+.required-note b, .field b { color: #b9473f; }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 19px 16px; }
+.field { display: grid; align-content: start; gap: 8px; color: #34433a; font-size: 12px; font-weight: 650; }
+.field > span { display: flex; align-items: center; gap: 4px; }
+.optional { margin-left: 5px; color: #929b95; font-size: 10px; font-weight: 500; }
+.field input, .field select, .field textarea { width: 100%; min-height: 43px; padding: 10px 12px; border: 1px solid #dfe6e1; border-radius: 9px; outline: none; color: #26352d; background: #fff; font: inherit; font-size: 13px; font-weight: 450; }
+.field textarea { min-height: 84px; resize: vertical; line-height: 1.5; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: #48a17a; box-shadow: 0 0 0 3px #48a17a20; }
+.field input::placeholder, .field textarea::placeholder { color: #a1aaa4; }
+.amount-input { display: flex; align-items: center; min-height: 43px; border: 1px solid #dfe6e1; border-radius: 9px; }
+.amount-input:focus-within { border-color: #48a17a; box-shadow: 0 0 0 3px #48a17a20; }
+.amount-input > span { padding-left: 12px; color: #7c8981; font-size: 14px; font-weight: 500; }
+.amount-input input { min-height: 41px; border: 0; box-shadow: none !important; }
+.field-error { color: #a2332d; font-size: 11px; font-weight: 500; }
+.field-wide { grid-column: 1 / -1; }
+.form-hint { margin: 19px 0 0; color: #76837b; font-size: 12px; }
+.form-actions { display: flex; justify-content: flex-end; margin-top: 23px; padding-top: 19px; border-top: 1px solid #edf0ed; }
+.button:disabled { cursor: not-allowed; opacity: .5; }
+fieldset:disabled .field { opacity: .58; }
+.field input[aria-invalid="true"], .field select[aria-invalid="true"], .field textarea[aria-invalid="true"] { border-color: #c7443b; }
+.field :is(input, select, textarea):focus-visible, .button:focus-visible { outline: 3px solid #53a98466; outline-offset: 2px; }
+.privacy-note { display: flex; align-items: center; gap: 13px; margin-top: 16px; padding: 16px 19px; border: 1px solid #e5ebe6; border-radius: 13px; background: #f4f8f5; }
+.privacy-icon { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border-radius: 10px; color: #176b4b; background: #e5f2e9; font-size: 17px; }
+.privacy-note p { display: grid; gap: 4px; margin: 0; }
+.privacy-note strong { color: #34443a; font-size: 12px; }
+.privacy-note p span { color: #76837b; font-size: 11px; line-height: 1.5; }
+@media (max-width: 560px) {
+  .form-card { padding: 21px 17px; border-radius: 16px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .field-wide { grid-column: auto; }
+  .privacy-note { align-items: flex-start; padding: 14px; }
+}
