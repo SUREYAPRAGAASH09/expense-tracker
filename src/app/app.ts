@@ -215,6 +215,16 @@ export class App {
     this.accessMode.set('change');
   }
 
+  protected lockApp(): void {
+    this.tourActive.set(false);
+    this.tourSpotlight.set(null);
+    this.transactions.set([]);
+    this.loginPinForm.reset();
+    this.changePinForm.reset();
+    this.clearSecurityMessage();
+    this.accessMode.set('login');
+  }
+
   protected cancelPinChange(): void {
     this.changePinForm.reset();
     this.clearSecurityMessage();

@@ -11,6 +11,7 @@
       <div class="header-actions">
         <button class="button button-quiet" type="button" (click)="startTour()">Take a tour</button>
         <button class="button button-quiet" type="button" (click)="showPinChange()">Change PIN</button>
+        <button class="button button-quiet" type="button" (click)="lockApp()">Lock app</button>
         @if (installPrompt()) {
           <button class="button button-install" type="button" (click)="installApp()">Install app</button>
         } @else {
