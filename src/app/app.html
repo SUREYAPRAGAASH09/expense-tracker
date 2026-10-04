@@ -50,14 +50,13 @@
       }
     </section> -->
 
-    <section class="form-card" aria-labelledby="transaction-heading">
-      <div class="section-heading form-heading">
-        <div>
-          <!-- <p class="eyebrow">TRANSACTION DETAILS</p> -->
-          <h2 id="transaction-heading">Add a transaction</h2>
-        </div>
-        <span class="required-note"><span aria-hidden="true">*</span> Required fields</span>
-      </div>
+    <details class="form-card transaction-entry-panel" aria-labelledby="transaction-heading">
+      <summary class="expansion-summary">
+        <span><span class="eyebrow">TRANSACTION DETAILS</span><strong id="transaction-heading">Add a transaction</strong></span>
+        <span class="expansion-icon" aria-hidden="true"></span>
+      </summary>
+      <div class="expansion-content">
+        <p class="required-note"><span aria-hidden="true">*</span> Required fields</p>
 
       <form [formGroup]="form" (ngSubmit)="submitForm()" novalidate>
         <fieldset>
@@ -128,13 +127,14 @@
           </p>
         }
       </form>
-    </section>
+      </div>
+    </details>
 
     <section class="form-card" aria-labelledby="history-heading">
       <div class="section-heading form-heading">
-        <!-- <div><p class="eyebrow">SAVED LOCALLY</p><h2 id="history-heading">Recent transactions</h2></div> -->
+        <div><p class="eyebrow">SAVED LOCALLY</p><h2 id="history-heading">Transactions</h2></div>
       </div>
-      <div class="transaction-filters" aria-label="Filter transactions by date">
+      <div class="transaction-filters" aria-label="Filter transactions">
         <label class="filter-field"><span>Date range</span>
           <select [value]="dateFilter()" (change)="setDateFilter($event)">
             <option value="all">All transactions</option>
@@ -162,18 +162,54 @@
           <label class="filter-field"><span>From</span><input type="date" [value]="customStartDate()" (change)="setCustomStartDate($event)"></label>
           <label class="filter-field"><span>To</span><input type="date" [value]="customEndDate()" (change)="setCustomEndDate($event)"></label>
         }
+        <label class="filter-field"><span>Transaction type</span>
+          <select [value]="transactionTypeFilter()" (change)="setTransactionTypeFilter($event)">
+            <option value="all">All types</option>
+            @for (type of transactionTypes; track type) { <option [value]="type">{{ type }}</option> }
+          </select>
+        </label>
+        <label class="filter-field"><span>Category</span>
+          <select [value]="categoryFilter()" (change)="setCategoryFilter($event)">
+            <option value="all">All categories</option>
+            @for (category of filterCategories; track category) { <option [value]="category">{{ category }}</option> }
+          </select>
+        </label>
+        <label class="filter-field"><span>Subcategory</span>
+          <select [value]="subcategoryFilter()" (change)="setSubcategoryFilter($event)">
+            <option value="all">All subcategories</option>
+            @for (subcategory of filterSubcategories; track subcategory) { <option [value]="subcategory">{{ subcategory }}</option> }
+          </select>
+        </label>
+        <label class="filter-field"><span>Payment method</span>
+          <select [value]="paymentMethodFilter()" (change)="setPaymentMethodFilter($event)">
+            <option value="all">All payment methods</option>
+            @for (method of filterPaymentMethods; track method) { <option [value]="method">{{ method }}</option> }
+          </select>
+        </label>
       </div>
       <p class="filter-count" aria-live="polite">Showing {{ filteredTransactions.length }} of {{ transactions().length }} transactions</p>
+      <div class="table-scroll">
+        <table class="totals-table">
+          <caption>Totals by transaction type for the selected filters</caption>
+          <thead><tr><th scope="col">Expense</th><th scope="col">Income</th><th scope="col">Transfer</th><th scope="col">Refund</th></tr></thead>
+          <tbody><tr><td>₹{{ transactionTotals.Expense.toFixed(2) }}</td><td>₹{{ transactionTotals.Income.toFixed(2) }}</td><td>₹{{ transactionTotals.Transfer.toFixed(2) }}</td><td>₹{{ transactionTotals.Refund.toFixed(2) }}</td></tr></tbody>
+        </table>
+      </div>
       @if (!transactions().length) {
         <p class="form-hint">No transactions saved yet. Import a CSV or add your first transaction.</p>
       } @else if (!filteredTransactions.length) {
-        <p class="form-hint">No transactions match these dates.</p>
+        <p class="form-hint">No transactions match these filters.</p>
       } @else {
-        <ul class="transaction-list">
+        <div class="table-scroll transaction-table-scroll">
+        <table class="transaction-table">
+          <thead><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Amount</th></tr></thead>
+          <tbody>
           @for (item of filteredTransactions; track item.id) {
-            <li><span><strong>{{ item.mainCategory }} · {{ item.subcategory }}</strong><small>{{ item.date }} · {{ item.paymentMethod }}</small></span><strong>{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</strong></li>
+            <tr><td>{{ item.date }}</td><td>{{ item.transactionType }}</td><td>{{ item.mainCategory }}</td><td>{{ item.subcategory }}</td><td>{{ item.paymentMethod }}</td><td class="amount-cell">{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</td></tr>
           }
-        </ul>
+          </tbody>
+        </table>
+        </div>
       }
     </section>
 

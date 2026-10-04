@@ -26,6 +26,10 @@ export class App {
   protected readonly selectedMonth = signal('01');
   protected readonly customStartDate = signal('');
   protected readonly customEndDate = signal('');
+  protected readonly transactionTypeFilter = signal<'all' | TransactionType>('all');
+  protected readonly categoryFilter = signal('all');
+  protected readonly subcategoryFilter = signal('all');
+  protected readonly paymentMethodFilter = signal('all');
   protected readonly months = [
     { value: '01', label: 'January' }, { value: '02', label: 'February' },
     { value: '03', label: 'March' }, { value: '04', label: 'April' },
@@ -159,7 +163,35 @@ export class App {
         if (mode === 'custom') return (!start || item.date >= start) && (!end || item.date <= end);
         return true;
       })
+      .filter((item) => this.transactionTypeFilter() === 'all' || item.transactionType === this.transactionTypeFilter())
+      .filter((item) => this.categoryFilter() === 'all' || item.mainCategory === this.categoryFilter())
+      .filter((item) => this.subcategoryFilter() === 'all' || item.subcategory === this.subcategoryFilter())
+      .filter((item) => this.paymentMethodFilter() === 'all' || item.paymentMethod === this.paymentMethodFilter())
       .sort((first, second) => second.date.localeCompare(first.date) || second.id - first.id);
+  }
+
+  protected get filterCategories(): string[] {
+    return [...new Set(this.transactions()
+      .filter((item) => this.transactionTypeFilter() === 'all' || item.transactionType === this.transactionTypeFilter())
+      .map((item) => item.mainCategory))].sort();
+  }
+
+  protected get filterSubcategories(): string[] {
+    return [...new Set(this.transactions()
+      .filter((item) => this.transactionTypeFilter() === 'all' || item.transactionType === this.transactionTypeFilter())
+      .filter((item) => this.categoryFilter() === 'all' || item.mainCategory === this.categoryFilter())
+      .map((item) => item.subcategory))].sort();
+  }
+
+  protected get filterPaymentMethods(): string[] {
+    return [...new Set(this.transactions().map((item) => item.paymentMethod))].sort();
+  }
+
+  protected get transactionTotals(): Record<TransactionType, number> {
+    return this.filteredTransactions.reduce((totals, item) => {
+      totals[item.transactionType] += item.amount;
+      return totals;
+    }, { Expense: 0, Income: 0, Transfer: 0, Refund: 0 });
   }
 
   protected setDateFilter(event: Event): void {
@@ -180,6 +212,25 @@ export class App {
 
   protected setCustomEndDate(event: Event): void {
     this.customEndDate.set((event.target as HTMLInputElement).value);
+  }
+
+  protected setTransactionTypeFilter(event: Event): void {
+    this.transactionTypeFilter.set((event.target as HTMLSelectElement).value as 'all' | TransactionType);
+    this.categoryFilter.set('all');
+    this.subcategoryFilter.set('all');
+  }
+
+  protected setCategoryFilter(event: Event): void {
+    this.categoryFilter.set((event.target as HTMLSelectElement).value);
+    this.subcategoryFilter.set('all');
+  }
+
+  protected setSubcategoryFilter(event: Event): void {
+    this.subcategoryFilter.set((event.target as HTMLSelectElement).value);
+  }
+
+  protected setPaymentMethodFilter(event: Event): void {
+    this.paymentMethodFilter.set((event.target as HTMLSelectElement).value);
   }
 
   protected async installApp(): Promise<void> {
