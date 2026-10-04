@@ -224,8 +224,8 @@
     <footer>Private by design <span aria-hidden="true">·</span> Data remainds on your device</footer>
   </section>
   @if (tourActive()) {
-    <div class="tour-backdrop" (click)="closeTour()">
-      <section class="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-description" (click)="$event.stopPropagation()" (keydown)="handleTourKeydown($event)">
+    <div class="tour-backdrop" (click)="closeTour()" (window:resize)="positionTourDialog()">
+      <section class="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-description" [style.top.px]="tourPosition().top" [style.left.px]="tourPosition().left" (click)="$event.stopPropagation()" (keydown)="handleTourKeydown($event)">
         <div class="tour-dialog-topline">
           <p class="eyebrow">WEBSITE TOUR · {{ tourIndex() + 1 }} OF {{ tourSteps.length }}</p>
           <button id="tour-skip" class="tour-close" type="button" aria-label="Close tour" (click)="closeTour()">×</button>

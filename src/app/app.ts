@@ -49,6 +49,7 @@ export class App {
   protected readonly installPrompt = signal<InstallPromptEvent | null>(null);
   protected readonly tourActive = signal(false);
   protected readonly tourIndex = signal(0);
+  protected readonly tourPosition = signal({ top: 16, left: 16 });
   protected readonly tourSteps = [
     { target: 'storage', title: 'Your data stays on this device', body: 'Transactions are saved in this browser on this device. Use a CSV backup to keep or transfer a copy.' },
     { target: 'entry', title: 'Add a transaction', body: 'Open this panel to enter an expense, income, transfer, or refund. Required fields are marked with an asterisk.' },
@@ -254,6 +255,11 @@ export class App {
   protected startTour(): void {
     this.tourIndex.set(0);
     this.tourActive.set(true);
+    const cardWidth = Math.min(430, window.innerWidth - 24);
+    this.tourPosition.set({
+      top: Math.max(12, (window.innerHeight - 280) / 2),
+      left: Math.max(12, (window.innerWidth - cardWidth) / 2),
+    });
     window.setTimeout(() => {
       document.getElementById('tour-skip')?.focus();
       this.scrollToTourTarget();
@@ -305,7 +311,45 @@ export class App {
   private scrollToTourTarget(): void {
     window.setTimeout(() => {
       document.querySelector(`[data-tour="${this.currentTourStep.target}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(() => this.positionTourDialog(), 450);
     }, 0);
+  }
+
+  protected positionTourDialog(): void {
+    if (!this.tourActive()) return;
+    const target = document.querySelector<HTMLElement>(`[data-tour="${this.currentTourStep.target}"]`);
+    const dialog = document.querySelector<HTMLElement>('.tour-dialog');
+    if (!target || !dialog) return;
+
+    const targetRect = target.getBoundingClientRect();
+    const dialogRect = dialog.getBoundingClientRect();
+    const gap = 16;
+    const edge = 12;
+    const width = Math.min(dialogRect.width || 430, window.innerWidth - edge * 2);
+    const height = dialogRect.height;
+    const centeredLeft = Math.min(Math.max(edge, targetRect.left + targetRect.width / 2 - width / 2), window.innerWidth - width - edge);
+    const belowTop = targetRect.bottom + gap;
+    const aboveTop = targetRect.top - height - gap;
+    let top: number;
+    let left = centeredLeft;
+
+    if (belowTop + height <= window.innerHeight - edge) {
+      top = belowTop;
+    } else if (aboveTop >= edge) {
+      top = aboveTop;
+    } else if (window.innerWidth - targetRect.right >= width + gap) {
+      left = targetRect.right + gap;
+      top = Math.min(Math.max(edge, targetRect.top + targetRect.height / 2 - height / 2), window.innerHeight - height - edge);
+    } else if (targetRect.left >= width + gap) {
+      left = targetRect.left - width - gap;
+      top = Math.min(Math.max(edge, targetRect.top + targetRect.height / 2 - height / 2), window.innerHeight - height - edge);
+    } else {
+      const availableBelow = window.innerHeight - targetRect.bottom;
+      top = availableBelow >= targetRect.top ? belowTop : Math.max(edge, aboveTop);
+      top = Math.min(top, window.innerHeight - height - edge);
+    }
+
+    this.tourPosition.set({ top, left });
   }
 
   protected async installApp(): Promise<void> {
