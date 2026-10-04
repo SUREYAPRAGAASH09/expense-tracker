@@ -5,52 +5,42 @@
       <div>
         <p class="eyebrow">PERSONAL FINANCE</p>
         <h1 id="page-title">Expense tracker</h1>
-        <p class="subtitle">Your transactions stay in a CSV file on your device.</p>
+        <p class="subtitle">Your transactions are stored privately on this device.</p>
       </div>
+      @if (installPrompt()) {
+        <button class="button button-install" type="button" (click)="installApp()">Install app</button>
+      } @else {
+        <p class="install-tip">Install from your browser menu</p>
+      }
     </header>
 
     <section class="file-card" aria-labelledby="file-heading">
       <div class="section-heading">
         <div>
           <p class="eyebrow">YOUR DATA</p>
-          <h2 id="file-heading">CSV file connection</h2>
+          <h2 id="file-heading">On-device storage</h2>
         </div>
-        <span class="status-pill" [class.connected]="csv.status() === 'connected'" [class.download-mode]="csv.status() === 'download' || csv.status() === 'unsupported'" role="status">
+        <span class="status-pill" [class.connected]="database.status() === 'ready'" [class.download-mode]="database.status() !== 'ready'" role="status">
           <span class="status-dot" aria-hidden="true"></span>
-          {{ csv.status() === 'connected' ? 'Connected' : csv.status() === 'unsupported' || csv.status() === 'download' ? 'Download mode' : 'Not connected' }}
+          {{ database.status() === 'ready' ? 'Ready' : database.status() === 'loading' ? 'Opening' : 'Unavailable' }}
         </span>
       </div>
 
       <div class="file-summary">
-        <span class="file-icon" aria-hidden="true">CSV</span>
+        <span class="file-icon" aria-hidden="true">DB</span>
         <div class="file-detail">
-          <strong>{{ csv.fileName() ?? 'No CSV file selected' }}</strong>
-          <span>{{ csv.status() === 'connected' ? 'Read and write access is ready' : csv.status() === 'download' ? 'Loaded for this session; updates download as CSV' : csv.status() === 'unsupported' ? 'Entries will be downloaded as CSV files' : 'Select an existing file or create a new one' }}</span>
+          <strong>{{ transactions().length }} saved transaction{{ transactions().length === 1 ? '' : 's' }}</strong>
+          <span>Stored in this browser on this device. No account or server required.</span>
         </div>
       </div>
 
-      @if (csv.supportsDirectFileAccess) {
-        <div class="button-row">
-          <button class="button button-primary" type="button" (click)="selectFile()">
-            <span aria-hidden="true">↗</span> Select CSV file
-          </button>
-          <button class="button button-secondary" type="button" (click)="createFile()">
-            <span aria-hidden="true">＋</span> Create new CSV
-          </button>
-          @if (csv.status() === 'connected') {
-            <button class="button button-quiet" type="button" (click)="disconnect()">Disconnect</button>
-          }
-          <button class="button button-quiet" type="button" (click)="csvImport.click()">Import CSV for download mode</button>
-        </div>
-      } @else {
-        <div class="fallback-panel">
-          <p>This browser cannot edit a selected file directly. Import an existing CSV to continue it, or start with a blank file. Each entry downloads an updated CSV copy.</p>
-          <button class="button button-secondary" type="button" (click)="csvImport.click()">Import existing CSV</button>
-          <button class="button button-primary" type="button" (click)="csv.downloadCsvTemplate()">Download blank CSV</button>
-        </div>
-      }
+      <div class="button-row">
+        <button class="button button-primary" type="button" (click)="exportCsv()" [disabled]="database.status() !== 'ready'">Download CSV backup</button>
+        <button class="button button-secondary" type="button" (click)="csvImport.click()" [disabled]="database.status() !== 'ready'">Import transactions from CSV</button>
+      </div>
+      <p class="form-hint">Your browser manages this local database. Download CSV backups regularly so you can keep a copy outside the browser.</p>
 
-      <input #csvImport class="visually-hidden" type="file" (change)="importCsv($event)" aria-label="Choose a CSV file to import">
+      <input #csvImport class="visually-hidden" type="file" accept=".csv,text/csv" (change)="importCsv($event)" aria-label="Choose a CSV file to import">
 
       @if (message()) {
         <p class="notice" [class.notice-error]="messageType() === 'error'" [class.notice-success]="messageType() === 'success'" [attr.role]="messageType() === 'error' ? 'alert' : 'status'" [attr.aria-live]="messageType() === 'error' ? 'assertive' : 'polite'">
@@ -70,7 +60,7 @@
       </div>
 
       <form [formGroup]="form" (ngSubmit)="submitForm()" novalidate>
-        <fieldset [disabled]="!canEnterTransactions || saving()">
+        <fieldset>
           <div class="form-grid">
             <label class="field">
               <span>Date <b>*</b></span>
@@ -102,7 +92,7 @@
 
             <label class="field">
               <span>Subcategory <b>*</b></span>
-              <select formControlName="subcategory" required [disabled]="!canEnterTransactions || !form.controls.mainCategory.value" [attr.aria-invalid]="form.controls.subcategory.touched && form.controls.subcategory.invalid" [attr.aria-describedby]="form.controls.subcategory.touched && form.controls.subcategory.invalid ? 'subcategory-error' : null">
+              <select formControlName="subcategory" required [disabled]="!form.controls.mainCategory.value" [attr.aria-invalid]="form.controls.subcategory.touched && form.controls.subcategory.invalid" [attr.aria-describedby]="form.controls.subcategory.touched && form.controls.subcategory.invalid ? 'subcategory-error' : null">
                 <option value="">{{ form.controls.mainCategory.value ? 'Choose a subcategory' : 'Choose a category first' }}</option>
                 @for (subcategory of subcategories; track subcategory) { <option [value]="subcategory">{{ subcategory }}</option> }
               </select>
@@ -126,9 +116,7 @@
         </fieldset>
 
         @if (!canEnterTransactions) {
-          <p class="form-hint">Connect a CSV file above to enable transaction entry.</p>
-        } @else if (csv.status() === 'unsupported' || csv.status() === 'download') {
-          <p class="form-hint">Transactions are added to a temporary in-memory CSV and downloaded after each entry. Keep the latest download; this browser session does not retain it.</p>
+          <p class="form-hint">{{ database.status() === 'loading' ? 'Opening on-device storage…' : 'On-device storage is unavailable in this browser. Transactions cannot be saved.' }}</p>
         }
         <div class="form-actions">
           <button class="button button-primary" type="submit" [disabled]="!canEnterTransactions || saving()">{{ saving() ? 'Saving…' : 'Add Transaction' }}</button>
@@ -142,11 +130,26 @@
       </form>
     </section>
 
-    <section class="privacy-note" aria-label="Privacy information">
-      <span class="privacy-icon" aria-hidden="true">⌂</span>
-      <p><strong>Your data stays on your device</strong><span>The app writes to your selected CSV file and does not send transaction details to a server.</span></p>
+    <section class="form-card" aria-labelledby="history-heading">
+      <div class="section-heading form-heading">
+        <div><p class="eyebrow">SAVED LOCALLY</p><h2 id="history-heading">Recent transactions</h2></div>
+      </div>
+      @if (!transactions().length) {
+        <p class="form-hint">No transactions saved yet. Import a CSV or add your first transaction.</p>
+      } @else {
+        <ul class="transaction-list">
+          @for (item of transactions().slice().reverse().slice(0, 10); track item.id) {
+            <li><span><strong>{{ item.mainCategory }} · {{ item.subcategory }}</strong><small>{{ item.date }} · {{ item.paymentMethod }}</small></span><strong>{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</strong></li>
+          }
+        </ul>
+      }
     </section>
 
-    <footer>Private by design <span aria-hidden="true">·</span> Your CSV stays on your device</footer>
+    <section class="privacy-note" aria-label="Privacy information">
+      <span class="privacy-icon" aria-hidden="true">⌂</span>
+      <p><strong>Your data stays on this device</strong><span>Transactions are saved in your browser. They are not sent to a server.</span></p>
+    </section>
+
+    <footer>Private by design <span aria-hidden="true">·</span> Stored locally in this browser</footer>
   </section>
 </main>
