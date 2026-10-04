@@ -205,7 +205,7 @@
       } @else {
         <div class="table-scroll transaction-table-scroll" data-tour="table" [class.tour-highlight]="isTourTarget('table')">
         <table class="transaction-table">
-          <thead><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Amount</th></tr></thead>
+          <thead data-tour="table" [class.tour-highlight]="isTourTarget('table')"><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Amount</th></tr></thead>
           <tbody>
           @for (item of filteredTransactions; track item.id) {
             <tr><td>{{ item.date }}</td><td>{{ item.transactionType }}</td><td>{{ item.mainCategory }}</td><td>{{ item.subcategory }}</td><td>{{ item.paymentMethod }}</td><td class="amount-cell">{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</td></tr>
@@ -224,8 +224,15 @@
     <footer>Private by design <span aria-hidden="true">·</span> Data remainds on your device</footer>
   </section>
   @if (tourActive()) {
-    <div class="tour-backdrop" (click)="closeTour()" (window:resize)="positionTourDialog()">
-      <section class="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-description" [style.top.px]="tourPosition().top" [style.left.px]="tourPosition().left" (click)="$event.stopPropagation()" (keydown)="handleTourKeydown($event)">
+    <div class="tour-backdrop" (window:resize)="positionTourDialog()">
+      @if (tourSpotlight(); as spotlight) {
+        <div class="tour-scrim" aria-hidden="true" [style.top.px]="0" [style.left.px]="0" [style.width.px]="spotlight.viewportWidth" [style.height.px]="spotlight.top" (click)="closeTour()"></div>
+        <div class="tour-scrim" aria-hidden="true" [style.top.px]="spotlight.top + spotlight.height" [style.left.px]="0" [style.width.px]="spotlight.viewportWidth" [style.height.px]="spotlight.viewportHeight - spotlight.top - spotlight.height" (click)="closeTour()"></div>
+        <div class="tour-scrim" aria-hidden="true" [style.top.px]="spotlight.top" [style.left.px]="0" [style.width.px]="spotlight.left" [style.height.px]="spotlight.height" (click)="closeTour()"></div>
+        <div class="tour-scrim" aria-hidden="true" [style.top.px]="spotlight.top" [style.left.px]="spotlight.left + spotlight.width" [style.width.px]="spotlight.viewportWidth - spotlight.left - spotlight.width" [style.height.px]="spotlight.height" (click)="closeTour()"></div>
+      }
+    </div>
+    <section class="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-description" [style.top.px]="tourPosition().top" [style.left.px]="tourPosition().left" (click)="$event.stopPropagation()" (keydown)="handleTourKeydown($event)">
         <div class="tour-dialog-topline">
           <p class="eyebrow">WEBSITE TOUR · {{ tourIndex() + 1 }} OF {{ tourSteps.length }}</p>
           <button id="tour-skip" class="tour-close" type="button" aria-label="Close tour" (click)="closeTour()">×</button>
@@ -238,7 +245,6 @@
           <button class="button button-quiet" type="button" (click)="closeTour()">Skip tour</button>
           <button class="button button-primary" type="button" (click)="nextTourStep()">{{ tourIndex() === tourSteps.length - 1 ? 'Finish' : 'Next' }}</button>
         </div>
-      </section>
-    </div>
+    </section>
   }
 </main>

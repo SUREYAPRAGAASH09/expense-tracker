@@ -50,6 +50,10 @@ export class App {
   protected readonly tourActive = signal(false);
   protected readonly tourIndex = signal(0);
   protected readonly tourPosition = signal({ top: 16, left: 16 });
+  protected readonly tourSpotlight = signal<{
+    top: number; left: number; width: number; height: number;
+    viewportWidth: number; viewportHeight: number;
+  } | null>(null);
   protected readonly tourSteps = [
     { target: 'storage', title: 'Your data stays on this device', body: 'Transactions are saved in this browser on this device. Use a CSV backup to keep or transfer a copy.' },
     { target: 'entry', title: 'Add a transaction', body: 'Open this panel to enter an expense, income, transfer, or refund. Required fields are marked with an asterisk.' },
@@ -255,6 +259,7 @@ export class App {
   protected startTour(): void {
     this.tourIndex.set(0);
     this.tourActive.set(true);
+    this.tourSpotlight.set(null);
     const cardWidth = Math.min(430, window.innerWidth - 24);
     this.tourPosition.set({
       top: Math.max(12, (window.innerHeight - 280) / 2),
@@ -282,6 +287,7 @@ export class App {
 
   protected closeTour(): void {
     this.tourActive.set(false);
+    this.tourSpotlight.set(null);
     try {
       localStorage.setItem('expense-tracker-tour-seen', 'true');
     } catch {
@@ -310,8 +316,8 @@ export class App {
 
   private scrollToTourTarget(): void {
     window.setTimeout(() => {
-      document.querySelector(`[data-tour="${this.currentTourStep.target}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      window.setTimeout(() => this.positionTourDialog(), 450);
+      document.querySelector(`[data-tour="${this.currentTourStep.target}"]`)?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => this.positionTourDialog()));
     }, 0);
   }
 
@@ -322,8 +328,9 @@ export class App {
     if (!target || !dialog) return;
 
     const targetRect = target.getBoundingClientRect();
+    this.updateTourSpotlight(targetRect);
     const dialogRect = dialog.getBoundingClientRect();
-    const gap = 16;
+    const gap = 24;
     const edge = 12;
     const width = Math.min(dialogRect.width || 430, window.innerWidth - edge * 2);
     const height = dialogRect.height;
@@ -350,6 +357,19 @@ export class App {
     }
 
     this.tourPosition.set({ top, left });
+  }
+
+  protected updateTourSpotlight(rect: DOMRect): void {
+    const padding = 10;
+    const left = Math.max(0, rect.left - padding);
+    const top = Math.max(0, rect.top - padding);
+    const right = Math.min(window.innerWidth, rect.right + padding);
+    const bottom = Math.min(window.innerHeight, rect.bottom + padding);
+    this.tourSpotlight.set({
+      top, left, width: right - left, height: bottom - top,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
   }
 
   protected async installApp(): Promise<void> {
