@@ -1,4 +1,5 @@
 <main class="page-shell">
+  @if (accessMode() === 'unlocked') {
   <section class="workspace" aria-labelledby="page-title">
     <header class="page-header">
       <div class="brand-mark" aria-hidden="true">₹</div>
@@ -9,6 +10,7 @@
       </div>
       <div class="header-actions">
         <button class="button button-quiet" type="button" (click)="startTour()">Take a tour</button>
+        <button class="button button-quiet" type="button" (click)="showPinChange()">Change PIN</button>
         @if (installPrompt()) {
           <button class="button button-install" type="button" (click)="installApp()">Install app</button>
         } @else {
@@ -240,6 +242,64 @@
 
     <footer>Private by design <span aria-hidden="true">·</span> Data remainds on your device</footer>
   </section>
+  } @else {
+    <section class="workspace auth-workspace" aria-labelledby="access-title">
+      <header class="page-header">
+        <div class="brand-mark" aria-hidden="true">₹</div>
+        <div><p class="eyebrow">PERSONAL FINANCE</p><h1 id="access-title">Expense tracker</h1><p class="subtitle">Your transactions stay on this device.</p></div>
+      </header>
+      <section class="form-card auth-card">
+        @if (accessMode() === 'loading') {
+          <h2>Opening your private space…</h2>
+          <p class="auth-description">Checking this browser’s local storage.</p>
+        } @else if (accessMode() === 'error') {
+          <h2>Storage unavailable</h2>
+          <p class="auth-description">The app can’t open its local database. Check browser storage access and reload.</p>
+        } @else if (accessMode() === 'setup') {
+          <p class="eyebrow">FIRST-TIME SETUP</p><h2>Set your four-digit PIN</h2>
+          <p class="auth-description">You’ll enter this PIN whenever you open the app. Set a recovery question and answer in case you forget it.</p>
+          <form [formGroup]="setupPinForm" (ngSubmit)="setupPin()" novalidate>
+            <label class="field"><span>New four-digit PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" formControlName="pin" placeholder="4 digits"></label>
+            <label class="field"><span>Confirm PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" formControlName="confirmPin" placeholder="Enter the PIN again"></label>
+            <label class="field"><span>Recovery question</span><input type="text" maxlength="120" formControlName="recoveryQuestion" placeholder="Write a question only you can answer"></label>
+            <label class="field"><span>Recovery answer</span><input type="text" autocomplete="off" formControlName="recoveryAnswer" placeholder="Your answer"></label>
+            <div class="form-actions"><button class="button button-primary" type="submit" [disabled]="securityBusy()">{{ securityBusy() ? 'Setting up…' : 'Set PIN and continue' }}</button></div>
+          </form>
+        } @else if (accessMode() === 'login') {
+          <p class="eyebrow">APP LOCKED</p><h2>Enter your PIN</h2>
+          <p class="auth-description">Enter your four-digit PIN to open your transactions.</p>
+          <form [formGroup]="loginPinForm" (ngSubmit)="loginWithPin()" novalidate>
+            <label class="field"><span>Four-digit PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" formControlName="pin" placeholder="Enter your PIN"></label>
+            <div class="form-actions"><button class="button button-primary" type="submit" [disabled]="securityBusy()">{{ securityBusy() ? 'Checking…' : 'Unlock' }}</button></div>
+          </form>
+          <button class="auth-link" type="button" (click)="showPinRecovery()">Forgot PIN?</button>
+        } @else if (accessMode() === 'forgot') {
+          <p class="eyebrow">PIN RECOVERY</p><h2>Reset your PIN</h2>
+          <p class="auth-description">Answer your recovery question, then choose a new PIN.</p>
+          <p class="recovery-question">{{ recoveryQuestion() }}</p>
+          <form [formGroup]="recoverPinForm" (ngSubmit)="recoverPin()" novalidate>
+            <label class="field"><span>Recovery answer</span><input type="text" autocomplete="off" formControlName="recoveryAnswer"></label>
+            <label class="field"><span>New four-digit PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" formControlName="newPin" placeholder="4 digits"></label>
+            <label class="field"><span>Confirm new PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" formControlName="confirmPin"></label>
+            <div class="form-actions"><button class="button button-primary" type="submit" [disabled]="securityBusy()">{{ securityBusy() ? 'Resetting…' : 'Reset PIN' }}</button><button class="button button-quiet" type="button" (click)="cancelPinRecovery()">Back</button></div>
+          </form>
+        } @else if (accessMode() === 'change') {
+          <p class="eyebrow">SECURITY</p><h2>Change your PIN</h2>
+          <p class="auth-description">Confirm your current PIN, then enter a new four-digit PIN.</p>
+          <form [formGroup]="changePinForm" (ngSubmit)="changePin()" novalidate>
+            <label class="field"><span>Current PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" formControlName="currentPin"></label>
+            <label class="field"><span>New four-digit PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" formControlName="newPin" placeholder="4 digits"></label>
+            <label class="field"><span>Confirm new PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" formControlName="confirmPin"></label>
+            <div class="form-actions"><button class="button button-primary" type="submit" [disabled]="securityBusy()">{{ securityBusy() ? 'Changing…' : 'Change PIN' }}</button><button class="button button-quiet" type="button" (click)="cancelPinChange()">Cancel</button></div>
+          </form>
+        }
+        @if (securityMessage()) {
+          <p class="notice" [class.notice-error]="securityMessageType() === 'error'" [class.notice-success]="securityMessageType() === 'success'" [attr.role]="securityMessageType() === 'error' ? 'alert' : 'status'">{{ securityMessage() }}</p>
+        }
+        <p class="auth-storage-note">The PIN adds a screen lock. It does not encrypt data stored in this browser.</p>
+      </section>
+    </section>
+  }
   @if (tourActive()) {
     <div class="tour-backdrop" (window:resize)="positionTourDialog()">
       @if (tourSpotlight(); as spotlight) {

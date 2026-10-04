@@ -4,6 +4,15 @@ body { min-width: 320px; min-height: 100vh; margin: 0; color: #1d2b24; font-fami
 button { font-family: inherit; }
 .header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; margin-left: auto; }
 .header-actions .install-tip { margin: 0; }
+.auth-workspace { width: min(100%, 520px); padding-top: clamp(16px, 8vh, 72px); }
+.auth-card { padding: 30px; }
+.auth-card h2 { margin-bottom: 8px; }
+.auth-card form { display: grid; gap: 15px; margin-top: 22px; }
+.auth-card .form-actions { justify-content: flex-start; flex-wrap: wrap; gap: 9px; margin-top: 3px; padding-top: 16px; }
+.auth-description { margin: 0; color: #69766f; font-size: 13px; line-height: 1.6; }
+.auth-link { margin-top: 17px; padding: 0; border: 0; color: #146b4d; background: transparent; font-size: 13px; font-weight: 650; text-decoration: underline; cursor: pointer; }
+.recovery-question { margin: 20px 0 0; padding: 13px 14px; border-radius: 9px; color: #34433a; background: #f4f8f5; font-size: 13px; line-height: 1.5; }
+.auth-storage-note { margin: 20px 0 0; color: #7a867f; font-size: 11px; line-height: 1.5; }
 .form-card { margin-top: 16px; padding: 30px; border: 1px solid #e7ebe7; border-radius: 20px; background: #fff; box-shadow: 0 18px 50px #27382c0a; }
 .form-heading { margin-bottom: 26px; }
 .required-note { color: #7c8881; font-size: 11px; }
@@ -98,6 +107,8 @@ fieldset:disabled .field { opacity: .58; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
 @media (max-width: 560px) {
   .form-card { padding: 21px 17px; border-radius: 16px; }
+  .auth-card { padding: 23px 19px; }
+  .auth-workspace { padding-top: 24px; }
   .transaction-entry-panel { padding: 0; }
   .expansion-summary { padding: 20px 17px; }
   .expansion-content { padding: 0 17px 21px; }

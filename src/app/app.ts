@@ -50,6 +50,11 @@ export class App {
   protected readonly formMessage = signal('');
   protected readonly formMessageType = signal<'success' | 'error' | ''>('');
   protected readonly saving = signal(false);
+  protected readonly securityBusy = signal(false);
+  protected readonly accessMode = signal<'loading' | 'setup' | 'login' | 'forgot' | 'change' | 'error' | 'unlocked'>('loading');
+  protected readonly securityMessage = signal('');
+  protected readonly securityMessageType = signal<'success' | 'error' | ''>('');
+  protected readonly recoveryQuestion = signal('');
   protected readonly submitAttempted = signal(false);
   protected readonly installPrompt = signal<InstallPromptEvent | null>(null);
   protected readonly tourActive = signal(false);
@@ -76,6 +81,25 @@ export class App {
     paymentMethod: ['', Validators.required],
     notes: [''],
   });
+  protected readonly setupPinForm = this.formBuilder.group({
+    pin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+    confirmPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+    recoveryQuestion: ['', [Validators.required, Validators.minLength(5)]],
+    recoveryAnswer: ['', [Validators.required, Validators.minLength(2)]],
+  });
+  protected readonly loginPinForm = this.formBuilder.group({
+    pin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+  });
+  protected readonly recoverPinForm = this.formBuilder.group({
+    recoveryAnswer: ['', [Validators.required, Validators.minLength(2)]],
+    newPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+    confirmPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+  });
+  protected readonly changePinForm = this.formBuilder.group({
+    currentPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+    newPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+    confirmPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+  });
 
   constructor() {
     window.addEventListener('beforeinstallprompt', (event: Event) => {
@@ -92,7 +116,115 @@ export class App {
       this.form.controls.subcategory.reset('');
     });
 
-    void this.loadTransactions();
+    void this.initializeAccess();
+  }
+
+  protected async setupPin(): Promise<void> {
+    const form = this.setupPinForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setSecurityMessage('Enter a valid four-digit PIN and complete the recovery fields.', 'error'); return; }
+    const value = form.getRawValue();
+    if (value.pin !== value.confirmPin) { this.setSecurityMessage('The PIN entries do not match.', 'error'); return; }
+    this.securityBusy.set(true);
+    this.clearSecurityMessage();
+    try {
+      await this.database.setupSecurity(value.pin!, value.recoveryQuestion!, value.recoveryAnswer!);
+      await this.unlockWorkspace();
+      this.setMessage('Your PIN and recovery details are set up.', 'success');
+    } catch {
+      this.setSecurityMessage('Secure PIN setup is unavailable here. Open the app using HTTPS and try again.', 'error');
+    } finally {
+      this.securityBusy.set(false);
+    }
+  }
+
+  protected async loginWithPin(): Promise<void> {
+    const form = this.loginPinForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setSecurityMessage('Enter your four-digit PIN.', 'error'); return; }
+    this.securityBusy.set(true);
+    this.clearSecurityMessage();
+    try {
+      if (!(await this.database.verifyPin(form.controls.pin.value!))) {
+        this.setSecurityMessage('That PIN is not correct. Try again or use PIN recovery.', 'error');
+        form.reset();
+        return;
+      }
+      form.reset();
+      await this.unlockWorkspace();
+    } catch {
+      this.setSecurityMessage('The PIN could not be checked. Please try again.', 'error');
+    } finally {
+      this.securityBusy.set(false);
+    }
+  }
+
+  protected async recoverPin(): Promise<void> {
+    const form = this.recoverPinForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setSecurityMessage('Complete the recovery answer and enter a valid four-digit PIN.', 'error'); return; }
+    const value = form.getRawValue();
+    if (value.newPin !== value.confirmPin) { this.setSecurityMessage('The new PIN entries do not match.', 'error'); return; }
+    this.securityBusy.set(true);
+    this.clearSecurityMessage();
+    try {
+      const recovered = await this.database.recoverPin(value.recoveryAnswer!, value.newPin!);
+      if (!recovered) {
+        this.setSecurityMessage('That recovery answer does not match. Please try again.', 'error');
+        return;
+      }
+      form.reset();
+      this.loginPinForm.reset();
+      this.accessMode.set('login');
+      this.setSecurityMessage('PIN reset. Sign in with your new PIN.', 'success');
+    } catch {
+      this.setSecurityMessage('The PIN could not be reset. Please try again.', 'error');
+    } finally {
+      this.securityBusy.set(false);
+    }
+  }
+
+  protected async changePin(): Promise<void> {
+    const form = this.changePinForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setSecurityMessage('Enter your current PIN and a valid new four-digit PIN.', 'error'); return; }
+    const value = form.getRawValue();
+    if (value.newPin !== value.confirmPin) { this.setSecurityMessage('The new PIN entries do not match.', 'error'); return; }
+    if (value.currentPin === value.newPin) { this.setSecurityMessage('Choose a different PIN from your current one.', 'error'); return; }
+    this.securityBusy.set(true);
+    this.clearSecurityMessage();
+    try {
+      if (!(await this.database.changePin(value.currentPin!, value.newPin!))) {
+        this.setSecurityMessage('Your current PIN is not correct.', 'error');
+        return;
+      }
+      form.reset();
+      this.accessMode.set('unlocked');
+      this.setMessage('Your PIN was changed.', 'success');
+    } catch {
+      this.setSecurityMessage('The PIN could not be changed. Please try again.', 'error');
+    } finally {
+      this.securityBusy.set(false);
+    }
+  }
+
+  protected showPinRecovery(): void {
+    this.clearSecurityMessage();
+    this.accessMode.set('forgot');
+  }
+
+  protected showPinChange(): void {
+    this.changePinForm.reset();
+    this.clearSecurityMessage();
+    this.accessMode.set('change');
+  }
+
+  protected cancelPinChange(): void {
+    this.changePinForm.reset();
+    this.clearSecurityMessage();
+    this.accessMode.set('unlocked');
+  }
+
+  protected cancelPinRecovery(): void {
+    this.recoverPinForm.reset();
+    this.clearSecurityMessage();
+    this.accessMode.set('login');
   }
 
   protected get mainCategories(): string[] {
@@ -456,11 +588,43 @@ export class App {
 
   private async loadTransactions(): Promise<void> {
     try {
-      this.transactions.set(await this.database.initialize());
+      this.transactions.set(await this.database.listTransactions());
       this.maybeStartFirstTour();
     } catch {
       this.setMessage('Local storage could not be opened. Your transactions are unavailable in this browser.', 'error');
     }
+  }
+
+  private async initializeAccess(): Promise<void> {
+    try {
+      await this.database.initialize();
+      const settings = await this.database.getSecuritySettings();
+      if (settings) {
+        this.recoveryQuestion.set(settings.recoveryQuestion);
+        this.accessMode.set('login');
+      } else {
+        this.accessMode.set('setup');
+      }
+    } catch {
+      this.accessMode.set('error');
+      this.setSecurityMessage('On-device storage could not be opened. Check browser storage access and reload.', 'error');
+    }
+  }
+
+  private async unlockWorkspace(): Promise<void> {
+    this.transactions.set(await this.database.listTransactions());
+    this.accessMode.set('unlocked');
+    this.maybeStartFirstTour();
+  }
+
+  private setSecurityMessage(message: string, type: 'success' | 'error'): void {
+    this.securityMessage.set(message);
+    this.securityMessageType.set(type);
+  }
+
+  private clearSecurityMessage(): void {
+    this.securityMessage.set('');
+    this.securityMessageType.set('');
   }
 
   private maybeStartFirstTour(): void {
