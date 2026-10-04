@@ -33,6 +33,7 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .transaction-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
 .filter-field { display: grid; gap: 6px; min-width: 145px; color: #526158; font-size: 11px; font-weight: 650; }
 .filter-field select, .filter-field input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #dfe6e1; border-radius: 8px; color: #26352d; background: #fff; font: inherit; font-size: 12px; }
+.description-search { flex: 1 1 220px; }
 .filter-field :is(select, input):focus-visible { outline: 3px solid #53a98466; outline-offset: 2px; }
 .filter-count { margin: 15px 0 0; color: #76837b; font-size: 11px; }
 .transaction-entry-panel { padding: 0; overflow: hidden; }
@@ -59,6 +60,8 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .transaction-table td { color: #34433a; }
 .transaction-table tbody tr:last-child td { border-bottom: 0; }
 .transaction-table .amount-cell { color: #26352d; font-weight: 700; text-align: right; white-space: nowrap; }
+.transaction-table .amount-cell.positive-amount { color: #145c36; }
+.transaction-table .amount-cell.negative-amount { color: #9f2929; }
 .transaction-table .description-cell { min-width: 180px; max-width: 320px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .transaction-table th:last-child { text-align: right; }
 .transaction-table-scroll { margin-top: 10px; border: 1px solid #edf0ed; border-radius: 10px; }

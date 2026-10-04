@@ -30,6 +30,7 @@ export class App {
   protected readonly categoryFilter = signal('all');
   protected readonly subcategoryFilter = signal('all');
   protected readonly paymentMethodFilter = signal('all');
+  protected readonly descriptionSearch = signal('');
   protected readonly currentPage = signal(1);
   protected readonly pageSize = signal(10);
   protected readonly pageSizes = [10, 25, 50];
@@ -179,6 +180,7 @@ export class App {
     const month = this.selectedMonth();
     const start = this.customStartDate();
     const end = this.customEndDate();
+    const search = this.descriptionSearch().trim().toLocaleLowerCase();
     return this.transactions()
       .filter((item) => {
         if (mode === 'year') return item.date.startsWith(`${year}-`);
@@ -190,6 +192,7 @@ export class App {
       .filter((item) => this.categoryFilter() === 'all' || item.mainCategory === this.categoryFilter())
       .filter((item) => this.subcategoryFilter() === 'all' || item.subcategory === this.subcategoryFilter())
       .filter((item) => this.paymentMethodFilter() === 'all' || item.paymentMethod === this.paymentMethodFilter())
+      .filter((item) => !search || item.notes.toLocaleLowerCase().includes(search))
       .sort((first, second) => second.date.localeCompare(first.date) || second.id - first.id);
   }
 
@@ -279,6 +282,11 @@ export class App {
 
   protected setPaymentMethodFilter(event: Event): void {
     this.paymentMethodFilter.set((event.target as HTMLSelectElement).value);
+    this.currentPage.set(1);
+  }
+
+  protected setDescriptionSearch(event: Event): void {
+    this.descriptionSearch.set((event.target as HTMLInputElement).value);
     this.currentPage.set(1);
   }
 
