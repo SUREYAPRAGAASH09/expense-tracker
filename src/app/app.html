@@ -1,5 +1,34 @@
 <main class="page-shell">
   @if (accessMode() === 'unlocked') {
+  @if (activeView() === 'about') {
+    <section class="workspace about-workspace" aria-labelledby="about-title">
+      <header class="page-header about-header">
+        <div class="brand-mark" aria-hidden="true">₹</div>
+        <div><p class="eyebrow">PERSONAL FINANCE</p><h1 id="about-title">About Expense Tracker</h1><p class="subtitle">A private, on-device way to organize personal transactions.</p></div>
+      </header>
+      <section class="form-card about-card">
+        <div class="about-section">
+          <h2>What this app does</h2>
+          <p>Record expenses, income, transfers, and refunds. Filter and search transaction history, review totals, and download a CSV backup.</p>
+        </div>
+        <div class="about-section">
+          <h2>Where your data is stored</h2>
+          <p>Transaction records are kept in this browser’s local IndexedDB on this device. They are not synchronized to another phone or sent to an app server. Clearing this browser’s site data can remove the records.</p>
+        </div>
+        <div class="about-section">
+          <h2>PIN and privacy</h2>
+          <p>The four-digit PIN locks the app screen. Transaction records in IndexedDB are not encrypted, so the PIN is not protection against someone with direct access to browser storage.</p>
+        </div>
+        <div class="about-section">
+          <h2>CSV backups</h2>
+          <p>Downloaded CSV backups contain readable transaction details. Keep them somewhere private. Use a backup to move records between devices; the app does not sync them automatically.</p>
+        </div>
+        <div class="about-actions">
+          <button class="button button-primary" type="button" (click)="backToTransactions()">Back to transactions</button>
+        </div>
+      </section>
+    </section>
+  } @else {
   <section class="workspace" aria-labelledby="page-title">
     <header class="page-header">
       <div class="brand-mark" aria-hidden="true">₹</div>
@@ -9,9 +38,15 @@
         <p class="subtitle">Your transactions are stored privately on this device.</p>
       </div>
       <div class="header-actions">
-        <button class="button button-quiet" type="button" (click)="startTour()">Take a tour</button>
-        <button class="button button-quiet" type="button" (click)="showPinChange()">Change PIN</button>
-        <button class="button button-quiet" type="button" (click)="lockApp()">Lock app</button>
+        <details #appMenu class="app-menu">
+          <summary class="button button-quiet">Menu</summary>
+          <div class="app-menu-items">
+            <button type="button" (click)="openAbout(); appMenu.open = false">About</button>
+            <button type="button" (click)="startTour(); appMenu.open = false">Take a tour</button>
+            <button type="button" (click)="showPinChange(); appMenu.open = false">Change PIN</button>
+            <button type="button" (click)="lockApp(); appMenu.open = false">Lock app</button>
+          </div>
+        </details>
         @if (installPrompt()) {
           <button class="button button-install" type="button" (click)="installApp()">Install app</button>
         } @else {
@@ -243,6 +278,7 @@
 
     <footer>Private by design <span aria-hidden="true">·</span> Data remainds on your device</footer>
   </section>
+  }
   } @else {
     <section class="workspace auth-workspace" aria-labelledby="access-title">
       <header class="page-header">

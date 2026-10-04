@@ -55,6 +55,7 @@ export class App {
   protected readonly securityMessage = signal('');
   protected readonly securityMessageType = signal<'success' | 'error' | ''>('');
   protected readonly recoveryQuestion = signal('');
+  protected readonly activeView = signal<'transactions' | 'about'>('transactions');
   protected readonly submitAttempted = signal(false);
   protected readonly installPrompt = signal<InstallPromptEvent | null>(null);
   protected readonly tourActive = signal(false);
@@ -213,6 +214,14 @@ export class App {
     this.changePinForm.reset();
     this.clearSecurityMessage();
     this.accessMode.set('change');
+  }
+
+  protected openAbout(): void {
+    this.activeView.set('about');
+  }
+
+  protected backToTransactions(): void {
+    this.activeView.set('transactions');
   }
 
   protected lockApp(): void {

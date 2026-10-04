@@ -4,6 +4,12 @@ body { min-width: 320px; min-height: 100vh; margin: 0; color: #1d2b24; font-fami
 button { font-family: inherit; }
 .header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; margin-left: auto; }
 .header-actions .install-tip { margin: 0; }
+.app-menu { position: relative; }
+.app-menu > summary { list-style: none; }
+.app-menu > summary::-webkit-details-marker { display: none; }
+.app-menu-items { position: absolute; z-index: 20; top: calc(100% + 8px); right: 0; display: grid; width: 190px; padding: 6px; border: 1px solid #e5ebe6; border-radius: 11px; background: #fff; box-shadow: 0 12px 30px #27382c1a; }
+.app-menu-items button { padding: 11px 12px; border: 0; border-radius: 7px; color: #34433a; background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.app-menu-items button:hover, .app-menu-items button:focus-visible { outline: 0; background: #f2f8f4; }
 .auth-workspace { width: min(100%, 520px); padding-top: clamp(16px, 8vh, 72px); }
 .auth-card { padding: 30px; }
 .auth-card h2 { margin-bottom: 8px; }
@@ -13,6 +19,12 @@ button { font-family: inherit; }
 .auth-link { margin-top: 17px; padding: 0; border: 0; color: #146b4d; background: transparent; font-size: 13px; font-weight: 650; text-decoration: underline; cursor: pointer; }
 .recovery-question { margin: 20px 0 0; padding: 13px 14px; border-radius: 9px; color: #34433a; background: #f4f8f5; font-size: 13px; line-height: 1.5; }
 .auth-storage-note { margin: 20px 0 0; color: #7a867f; font-size: 11px; line-height: 1.5; }
+.about-workspace { width: min(100%, 760px); }
+.about-card { display: grid; gap: 24px; }
+.about-section { padding-bottom: 20px; border-bottom: 1px solid #edf0ed; }
+.about-section h2 { margin-bottom: 8px; font-size: 16px; }
+.about-section p { margin: 0; color: #68756e; font-size: 13px; line-height: 1.65; }
+.about-actions { display: flex; justify-content: flex-start; }
 .form-card { margin-top: 16px; padding: 30px; border: 1px solid #e7ebe7; border-radius: 20px; background: #fff; box-shadow: 0 18px 50px #27382c0a; }
 .form-heading { margin-bottom: 26px; }
 .required-note { color: #7c8881; font-size: 11px; }
