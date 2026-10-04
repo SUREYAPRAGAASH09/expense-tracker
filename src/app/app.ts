@@ -46,6 +46,7 @@ export class App {
   protected readonly formMessage = signal('');
   protected readonly formMessageType = signal<'success' | 'error' | ''>('');
   protected readonly saving = signal(false);
+  protected readonly submitAttempted = signal(false);
   protected readonly installPrompt = signal<InstallPromptEvent | null>(null);
   protected readonly tourActive = signal(false);
   protected readonly tourIndex = signal(0);
@@ -116,6 +117,7 @@ export class App {
       return;
     }
     if (this.form.invalid) {
+      this.submitAttempted.set(true);
       this.form.markAllAsTouched();
       this.setFormMessage('Check the highlighted fields and complete the required information.', 'error');
       return;

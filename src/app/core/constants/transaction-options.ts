@@ -29,7 +29,7 @@ export const CATEGORY_OPTIONS: Record<TransactionType, Record<string, readonly s
     Employment: ['Salary', 'Bonus', 'Incentive', 'Overtime', 'Allowance', 'Reimbursement'],
     'Self-Employment': ['Freelance', 'Consulting', 'Contract work', 'Business income'],
     'Investment Income': ['Dividends', 'Interest', 'Capital gains', 'Rental income'],
-    'Other Income': ['Cashback', 'Rewards', 'Refund', 'Tax refund', 'Gifts received', 'Scholarship', 'Prize money', 'Commission', 'Other income'],
+    'Other Income': ['Cashback', 'Rewards', 'Refund', 'Tax refund', 'Gifts received', 'Scholarship', 'Prize money', 'Commission','Interest from Bank', 'Other income'],
   },
   Transfer: {
     'Transfers — NOT Expenses': ['Bank → Bank', 'Bank → Wallet', 'Wallet → Bank', 'Bank → Cash', 'Cash → Bank', 'Credit Card → Bank', 'Savings Account → Current Account', 'Account → Account'],

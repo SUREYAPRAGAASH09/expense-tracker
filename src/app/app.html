@@ -78,10 +78,11 @@
 
             <label class="field">
               <span>Transaction type <b>*</b></span>
-              <select formControlName="transactionType" required>
+              <select formControlName="transactionType" required [attr.aria-invalid]="(form.controls.transactionType.touched || submitAttempted()) && form.controls.transactionType.invalid" [attr.aria-describedby]="(form.controls.transactionType.touched || submitAttempted()) && form.controls.transactionType.invalid ? 'transaction-type-error' : null">
                 <option value="">Choose a transaction type</option>
                 @for (type of transactionTypes; track type) { <option [value]="type">{{ type }}</option> }
               </select>
+              @if ((form.controls.transactionType.touched || submitAttempted()) && form.controls.transactionType.invalid) { <small class="field-error" id="transaction-type-error">Choose a transaction type.</small> }
             </label>
 
             <label class="field">
