@@ -7,11 +7,14 @@
         <h1 id="page-title">Expense tracker</h1>
         <p class="subtitle">Your transactions are stored privately on this device.</p>
       </div>
-      @if (installPrompt()) {
-        <button class="button button-install" type="button" (click)="installApp()">Install app</button>
-      } @else {
-        <p class="install-tip">Install from your browser menu</p>
-      }
+      <div class="header-actions">
+        <button class="button button-quiet" type="button" (click)="startTour()">Take a tour</button>
+        @if (installPrompt()) {
+          <button class="button button-install" type="button" (click)="installApp()">Install app</button>
+        } @else {
+          <p class="install-tip">Install from your browser menu</p>
+        }
+      </div>
     </header>
 
     <!-- <section class="file-card" aria-labelledby="file-heading">
@@ -50,7 +53,7 @@
       }
     </section> -->
 
-    <details class="form-card transaction-entry-panel" aria-labelledby="transaction-heading">
+    <details class="form-card transaction-entry-panel" aria-labelledby="transaction-heading" data-tour="entry" [class.tour-highlight]="isTourTarget('entry')">
       <summary class="expansion-summary">
         <span><span class="eyebrow">TRANSACTION DETAILS</span><strong id="transaction-heading">Add a transaction</strong></span>
         <span class="expansion-icon" aria-hidden="true"></span>
@@ -134,7 +137,7 @@
       <div class="section-heading form-heading">
         <div><p class="eyebrow">SAVED LOCALLY</p><h2 id="history-heading">Transactions</h2></div>
       </div>
-      <div class="transaction-filters" aria-label="Filter transactions">
+      <div class="transaction-filters" aria-label="Filter transactions" data-tour="filters" [class.tour-highlight]="isTourTarget('filters')">
         <label class="filter-field"><span>Date range</span>
           <select [value]="dateFilter()" (change)="setDateFilter($event)">
             <option value="all">All transactions</option>
@@ -188,7 +191,7 @@
         </label>
       </div>
       <p class="filter-count" aria-live="polite">Showing {{ filteredTransactions.length }} of {{ transactions().length }} transactions</p>
-      <div class="table-scroll">
+      <div class="table-scroll totals-table-scroll" data-tour="totals" [class.tour-highlight]="isTourTarget('totals')">
         <table class="totals-table">
           <caption>Totals by transaction type for the selected filters</caption>
           <thead><tr><th scope="col">Expense</th><th scope="col">Income</th><th scope="col">Transfer</th><th scope="col">Refund</th></tr></thead>
@@ -200,7 +203,7 @@
       } @else if (!filteredTransactions.length) {
         <p class="form-hint">No transactions match these filters.</p>
       } @else {
-        <div class="table-scroll transaction-table-scroll">
+        <div class="table-scroll transaction-table-scroll" data-tour="table" [class.tour-highlight]="isTourTarget('table')">
         <table class="transaction-table">
           <thead><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Amount</th></tr></thead>
           <tbody>
@@ -213,11 +216,29 @@
       }
     </section>
 
-    <section class="privacy-note" aria-label="Privacy information">
+    <section class="privacy-note" aria-label="Privacy information" data-tour="storage" [class.tour-highlight]="isTourTarget('storage')">
       <span class="privacy-icon" aria-hidden="true">⌂</span>
       <p><strong>Your data stays on this device</strong><span>Transactions are saved in your browser. They are not sent to a server.</span></p>
     </section>
 
     <footer>Private by design <span aria-hidden="true">·</span> Data remainds on your device</footer>
   </section>
+  @if (tourActive()) {
+    <div class="tour-backdrop" (click)="closeTour()">
+      <section class="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-description" (click)="$event.stopPropagation()" (keydown)="handleTourKeydown($event)">
+        <div class="tour-dialog-topline">
+          <p class="eyebrow">WEBSITE TOUR · {{ tourIndex() + 1 }} OF {{ tourSteps.length }}</p>
+          <button id="tour-skip" class="tour-close" type="button" aria-label="Close tour" (click)="closeTour()">×</button>
+        </div>
+        <h2 id="tour-title">{{ currentTourStep.title }}</h2>
+        <p id="tour-description">{{ currentTourStep.body }}</p>
+        <div class="tour-progress" aria-hidden="true"><span [style.width.%]="((tourIndex() + 1) / tourSteps.length) * 100"></span></div>
+        <div class="tour-actions">
+          <button class="button button-quiet" type="button" (click)="previousTourStep()" [disabled]="tourIndex() === 0">Back</button>
+          <button class="button button-quiet" type="button" (click)="closeTour()">Skip tour</button>
+          <button class="button button-primary" type="button" (click)="nextTourStep()">{{ tourIndex() === tourSteps.length - 1 ? 'Finish' : 'Next' }}</button>
+        </div>
+      </section>
+    </div>
+  }
 </main>

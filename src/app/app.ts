@@ -47,6 +47,16 @@ export class App {
   protected readonly formMessageType = signal<'success' | 'error' | ''>('');
   protected readonly saving = signal(false);
   protected readonly installPrompt = signal<InstallPromptEvent | null>(null);
+  protected readonly tourActive = signal(false);
+  protected readonly tourIndex = signal(0);
+  protected readonly tourSteps = [
+    { target: 'storage', title: 'Your data stays on this device', body: 'Transactions are saved in this browser on this device. Use a CSV backup to keep or transfer a copy.' },
+    { target: 'entry', title: 'Add a transaction', body: 'Open this panel to enter an expense, income, transfer, or refund. Required fields are marked with an asterisk.' },
+    { target: 'filters', title: 'Find transactions', body: 'Combine date, year, month, custom dates, transaction type, category, subcategory, and payment method filters.' },
+    { target: 'totals', title: 'Review totals', body: 'These totals summarize the transactions that match your current filters.' },
+    { target: 'table', title: 'View transaction details', body: 'Matching transactions appear here, newest dates first. On a phone, swipe sideways to see every column.' },
+  ] as const;
+  private autoTourChecked = false;
   protected readonly form = this.formBuilder.group({
     date: [this.today(), Validators.required],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
@@ -233,6 +243,71 @@ export class App {
     this.paymentMethodFilter.set((event.target as HTMLSelectElement).value);
   }
 
+  protected get currentTourStep(): (typeof this.tourSteps)[number] {
+    return this.tourSteps[this.tourIndex()];
+  }
+
+  protected isTourTarget(target: string): boolean {
+    return this.tourActive() && this.currentTourStep.target === target;
+  }
+
+  protected startTour(): void {
+    this.tourIndex.set(0);
+    this.tourActive.set(true);
+    window.setTimeout(() => {
+      document.getElementById('tour-skip')?.focus();
+      this.scrollToTourTarget();
+    }, 0);
+  }
+
+  protected previousTourStep(): void {
+    this.tourIndex.update((index) => Math.max(0, index - 1));
+    this.scrollToTourTarget();
+  }
+
+  protected nextTourStep(): void {
+    if (this.tourIndex() >= this.tourSteps.length - 1) {
+      this.closeTour();
+      return;
+    }
+    this.tourIndex.update((index) => index + 1);
+    this.scrollToTourTarget();
+  }
+
+  protected closeTour(): void {
+    this.tourActive.set(false);
+    try {
+      localStorage.setItem('expense-tracker-tour-seen', 'true');
+    } catch {
+      // The tour still works for this visit if browser storage is unavailable.
+    }
+  }
+
+  protected handleTourKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.closeTour();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>('.tour-dialog button:not(:disabled)')];
+    if (!buttons.length) return;
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private scrollToTourTarget(): void {
+    window.setTimeout(() => {
+      document.querySelector(`[data-tour="${this.currentTourStep.target}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+  }
+
   protected async installApp(): Promise<void> {
     const prompt = this.installPrompt();
     if (!prompt) return;
@@ -266,9 +341,21 @@ export class App {
   private async loadTransactions(): Promise<void> {
     try {
       this.transactions.set(await this.database.initialize());
+      this.maybeStartFirstTour();
     } catch {
       this.setMessage('Local storage could not be opened. Your transactions are unavailable in this browser.', 'error');
     }
+  }
+
+  private maybeStartFirstTour(): void {
+    if (this.autoTourChecked) return;
+    this.autoTourChecked = true;
+    try {
+      if (localStorage.getItem('expense-tracker-tour-seen') === 'true') return;
+    } catch {
+      // If local storage is unavailable, show the tour once during this page visit.
+    }
+    this.startTour();
   }
 
   private setMessage(message: string, type: 'success' | 'error'): void {
