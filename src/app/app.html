@@ -134,11 +134,43 @@
       <div class="section-heading form-heading">
         <div><p class="eyebrow">SAVED LOCALLY</p><h2 id="history-heading">Recent transactions</h2></div>
       </div>
+      <div class="transaction-filters" aria-label="Filter transactions by date">
+        <label class="filter-field"><span>Date range</span>
+          <select [value]="dateFilter()" (change)="setDateFilter($event)">
+            <option value="all">All transactions</option>
+            <option value="year">Year</option>
+            <option value="month">Month</option>
+            <option value="custom">Custom dates</option>
+          </select>
+        </label>
+        @if (dateFilter() === 'year' || dateFilter() === 'month') {
+          <label class="filter-field"><span>Year</span>
+            <select [value]="selectedYear()" (change)="setSelectedYear($event)">
+              @for (year of transactionYears; track year) { <option [value]="year">{{ year }}</option> }
+              @if (!transactionYears.length) { <option [value]="selectedYear()">{{ selectedYear() }}</option> }
+            </select>
+          </label>
+        }
+        @if (dateFilter() === 'month') {
+          <label class="filter-field"><span>Month</span>
+            <select [value]="selectedMonth()" (change)="setSelectedMonth($event)">
+              @for (month of months; track month.value) { <option [value]="month.value">{{ month.label }}</option> }
+            </select>
+          </label>
+        }
+        @if (dateFilter() === 'custom') {
+          <label class="filter-field"><span>From</span><input type="date" [value]="customStartDate()" (change)="setCustomStartDate($event)"></label>
+          <label class="filter-field"><span>To</span><input type="date" [value]="customEndDate()" (change)="setCustomEndDate($event)"></label>
+        }
+      </div>
+      <p class="filter-count" aria-live="polite">Showing {{ filteredTransactions.length }} of {{ transactions().length }} transactions</p>
       @if (!transactions().length) {
         <p class="form-hint">No transactions saved yet. Import a CSV or add your first transaction.</p>
+      } @else if (!filteredTransactions.length) {
+        <p class="form-hint">No transactions match these dates.</p>
       } @else {
         <ul class="transaction-list">
-          @for (item of transactions().slice().reverse().slice(0, 10); track item.id) {
+          @for (item of filteredTransactions; track item.id) {
             <li><span><strong>{{ item.mainCategory }} · {{ item.subcategory }}</strong><small>{{ item.date }} · {{ item.paymentMethod }}</small></span><strong>{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</strong></li>
           }
         </ul>

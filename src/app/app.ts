@@ -21,6 +21,19 @@ export class App {
   protected readonly csv = inject(CsvFileService);
   protected readonly database = inject(TransactionDatabaseService);
   protected readonly transactions = signal<TransactionRecord[]>([]);
+  protected readonly dateFilter = signal<'all' | 'year' | 'month' | 'custom'>('all');
+  protected readonly selectedYear = signal(String(new Date().getFullYear()));
+  protected readonly selectedMonth = signal('01');
+  protected readonly customStartDate = signal('');
+  protected readonly customEndDate = signal('');
+  protected readonly months = [
+    { value: '01', label: 'January' }, { value: '02', label: 'February' },
+    { value: '03', label: 'March' }, { value: '04', label: 'April' },
+    { value: '05', label: 'May' }, { value: '06', label: 'June' },
+    { value: '07', label: 'July' }, { value: '08', label: 'August' },
+    { value: '09', label: 'September' }, { value: '10', label: 'October' },
+    { value: '11', label: 'November' }, { value: '12', label: 'December' },
+  ];
   private readonly formBuilder = inject(FormBuilder);
   protected readonly transactionTypes = TRANSACTION_TYPES;
   protected readonly paymentMethods = PAYMENT_METHODS;
@@ -124,6 +137,49 @@ export class App {
   protected exportCsv(): void {
     this.csv.downloadTransactions(this.transactions());
     this.setMessage('CSV backup downloaded.', 'success');
+  }
+
+  protected get transactionYears(): string[] {
+    return [...new Set([
+      this.selectedYear(),
+      ...this.transactions().map((item) => item.date.slice(0, 4)).filter((year) => /^\d{4}$/.test(year)),
+    ])].sort().reverse();
+  }
+
+  protected get filteredTransactions(): TransactionRecord[] {
+    const mode = this.dateFilter();
+    const year = this.selectedYear();
+    const month = this.selectedMonth();
+    const start = this.customStartDate();
+    const end = this.customEndDate();
+    return this.transactions()
+      .filter((item) => {
+        if (mode === 'year') return item.date.startsWith(`${year}-`);
+        if (mode === 'month') return item.date.startsWith(`${year}-${month}-`);
+        if (mode === 'custom') return (!start || item.date >= start) && (!end || item.date <= end);
+        return true;
+      })
+      .sort((first, second) => second.date.localeCompare(first.date) || second.id - first.id);
+  }
+
+  protected setDateFilter(event: Event): void {
+    this.dateFilter.set((event.target as HTMLSelectElement).value as 'all' | 'year' | 'month' | 'custom');
+  }
+
+  protected setSelectedYear(event: Event): void {
+    this.selectedYear.set((event.target as HTMLSelectElement).value);
+  }
+
+  protected setSelectedMonth(event: Event): void {
+    this.selectedMonth.set((event.target as HTMLSelectElement).value);
+  }
+
+  protected setCustomStartDate(event: Event): void {
+    this.customStartDate.set((event.target as HTMLInputElement).value);
+  }
+
+  protected setCustomEndDate(event: Event): void {
+    this.customEndDate.set((event.target as HTMLInputElement).value);
   }
 
   protected async installApp(): Promise<void> {

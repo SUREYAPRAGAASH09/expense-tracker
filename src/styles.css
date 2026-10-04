@@ -28,6 +28,11 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .transaction-list li > span { display: grid; gap: 5px; min-width: 0; }
 .transaction-list li > span strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .transaction-list small { color: #79847e; font-size: 11px; font-weight: 450; }
+.transaction-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.filter-field { display: grid; gap: 6px; min-width: 145px; color: #526158; font-size: 11px; font-weight: 650; }
+.filter-field select, .filter-field input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #dfe6e1; border-radius: 8px; color: #26352d; background: #fff; font: inherit; font-size: 12px; }
+.filter-field :is(select, input):focus-visible { outline: 3px solid #53a98466; outline-offset: 2px; }
+.filter-count { margin: 15px 0 0; color: #76837b; font-size: 11px; }
 .form-actions { display: flex; justify-content: flex-end; margin-top: 23px; padding-top: 19px; border-top: 1px solid #edf0ed; }
 .button:disabled { cursor: not-allowed; opacity: .5; }
 fieldset:disabled .field { opacity: .58; }
