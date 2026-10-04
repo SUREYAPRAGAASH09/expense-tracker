@@ -65,7 +65,7 @@ export class App {
   protected readonly form = this.formBuilder.group({
     date: [this.today(), Validators.required],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
-    transactionType: ['Expense' as TransactionType, Validators.required],
+    transactionType: ['' as TransactionType | '', Validators.required],
     mainCategory: ['', Validators.required],
     subcategory: ['', Validators.required],
     paymentMethod: ['', Validators.required],
@@ -91,7 +91,8 @@ export class App {
   }
 
   protected get mainCategories(): string[] {
-    const type = this.form.controls.transactionType.value ?? 'Expense';
+    const type = this.form.controls.transactionType.value;
+    if (!type) return [];
     return Object.keys(CATEGORY_OPTIONS[type]);
   }
 
@@ -100,7 +101,8 @@ export class App {
   }
 
   protected get subcategories(): readonly string[] {
-    const type = this.form.controls.transactionType.value ?? 'Expense';
+    const type = this.form.controls.transactionType.value;
+    if (!type) return [];
     const category = this.form.controls.mainCategory.value ?? '';
     return CATEGORY_OPTIONS[type][category] ?? [];
   }
@@ -122,7 +124,7 @@ export class App {
     const transaction: Transaction = {
       date: value.date!,
       amount: value.amount as number,
-      transactionType: value.transactionType!,
+      transactionType: value.transactionType as TransactionType,
       mainCategory: value.mainCategory!,
       subcategory: value.subcategory!,
       paymentMethod: value.paymentMethod!,
@@ -137,7 +139,7 @@ export class App {
       this.form.reset({
         date: this.today(),
         amount: null,
-        transactionType: 'Expense',
+        transactionType: '',
         mainCategory: '',
         subcategory: '',
         paymentMethod: '',

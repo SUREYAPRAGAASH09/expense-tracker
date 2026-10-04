@@ -79,6 +79,7 @@
             <label class="field">
               <span>Transaction type <b>*</b></span>
               <select formControlName="transactionType" required>
+                <option value="">Choose a transaction type</option>
                 @for (type of transactionTypes; track type) { <option [value]="type">{{ type }}</option> }
               </select>
             </label>
@@ -203,7 +204,7 @@
       } @else if (!filteredTransactions.length) {
         <p class="form-hint">No transactions match these filters.</p>
       } @else {
-        <div class="table-scroll transaction-table-scroll" data-tour="table" [class.tour-highlight]="isTourTarget('table')">
+        <div class="table-scroll transaction-table-scroll">
         <table class="transaction-table">
           <thead data-tour="table" [class.tour-highlight]="isTourTarget('table')"><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Amount</th></tr></thead>
           <tbody>
