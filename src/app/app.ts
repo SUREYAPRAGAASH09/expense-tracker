@@ -30,6 +30,9 @@ export class App {
   protected readonly categoryFilter = signal('all');
   protected readonly subcategoryFilter = signal('all');
   protected readonly paymentMethodFilter = signal('all');
+  protected readonly currentPage = signal(1);
+  protected readonly pageSize = signal(10);
+  protected readonly pageSizes = [10, 25, 50];
   protected readonly months = [
     { value: '01', label: 'January' }, { value: '02', label: 'February' },
     { value: '03', label: 'March' }, { value: '04', label: 'April' },
@@ -137,6 +140,7 @@ export class App {
     try {
       const saved = await this.database.add(transaction);
       this.transactions.update((items) => [saved, ...items]);
+      this.currentPage.set(1);
       this.setFormMessage('Transaction saved on this device.', 'success');
       this.form.reset({
         date: '',
@@ -213,43 +217,78 @@ export class App {
     }, { Expense: 0, Income: 0, Transfer: 0, Refund: 0 });
   }
 
+  protected get totalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredTransactions.length / this.pageSize()));
+  }
+
+  protected get paginatedTransactions(): TransactionRecord[] {
+    const start = (this.currentPage() - 1) * this.pageSize();
+    return this.filteredTransactions.slice(start, start + this.pageSize());
+  }
+
+  protected get pageRangeStart(): number {
+    return this.filteredTransactions.length ? (this.currentPage() - 1) * this.pageSize() + 1 : 0;
+  }
+
+  protected get pageRangeEnd(): number {
+    return Math.min(this.currentPage() * this.pageSize(), this.filteredTransactions.length);
+  }
+
   protected setDateFilter(event: Event): void {
     this.dateFilter.set((event.target as HTMLSelectElement).value as 'all' | 'year' | 'month' | 'custom');
+    this.currentPage.set(1);
   }
 
   protected setSelectedYear(event: Event): void {
     this.selectedYear.set((event.target as HTMLSelectElement).value);
+    this.currentPage.set(1);
   }
 
   protected setSelectedMonth(event: Event): void {
     this.selectedMonth.set((event.target as HTMLSelectElement).value);
+    this.currentPage.set(1);
   }
 
   protected setCustomStartDate(event: Event): void {
     this.customStartDate.set((event.target as HTMLInputElement).value);
+    this.currentPage.set(1);
   }
 
   protected setCustomEndDate(event: Event): void {
     this.customEndDate.set((event.target as HTMLInputElement).value);
+    this.currentPage.set(1);
   }
 
   protected setTransactionTypeFilter(event: Event): void {
     this.transactionTypeFilter.set((event.target as HTMLSelectElement).value as 'all' | TransactionType);
     this.categoryFilter.set('all');
     this.subcategoryFilter.set('all');
+    this.currentPage.set(1);
   }
 
   protected setCategoryFilter(event: Event): void {
     this.categoryFilter.set((event.target as HTMLSelectElement).value);
     this.subcategoryFilter.set('all');
+    this.currentPage.set(1);
   }
 
   protected setSubcategoryFilter(event: Event): void {
     this.subcategoryFilter.set((event.target as HTMLSelectElement).value);
+    this.currentPage.set(1);
   }
 
   protected setPaymentMethodFilter(event: Event): void {
     this.paymentMethodFilter.set((event.target as HTMLSelectElement).value);
+    this.currentPage.set(1);
+  }
+
+  protected setPageSize(event: Event): void {
+    this.pageSize.set(Number((event.target as HTMLSelectElement).value));
+    this.currentPage.set(1);
+  }
+
+  protected changePage(delta: number): void {
+    this.currentPage.update((page) => Math.min(this.totalPages, Math.max(1, page + delta)));
   }
 
   protected get currentTourStep(): (typeof this.tourSteps)[number] {
@@ -397,6 +436,7 @@ export class App {
       const imported = await this.csv.readTransactions(file);
       const count = await this.database.addMany(imported);
       await this.loadTransactions();
+      this.currentPage.set(1);
       this.setMessage(`${count} transaction${count === 1 ? '' : 's'} imported into this device.`, 'success');
     } catch (error) {
       const code = error instanceof Error ? error.message : '';

@@ -192,7 +192,7 @@
           </select>
         </label>
       </div>
-      <p class="filter-count" aria-live="polite">Showing {{ filteredTransactions.length }} of {{ transactions().length }} transactions</p>
+      <p class="filter-count" aria-live="polite">Showing {{ pageRangeStart }}–{{ pageRangeEnd }} of {{ filteredTransactions.length }} matching transactions ({{ transactions().length }} saved)</p>
       <div class="table-scroll totals-table-scroll" data-tour="totals" [class.tour-highlight]="isTourTarget('totals')">
         <table class="totals-table">
           <caption>Totals by transaction type for the selected filters</caption>
@@ -209,12 +209,24 @@
         <table class="transaction-table">
           <thead data-tour="table" [class.tour-highlight]="isTourTarget('table')"><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Description / Notes</th><th scope="col">Amount</th></tr></thead>
           <tbody>
-          @for (item of filteredTransactions; track item.id) {
+          @for (item of paginatedTransactions; track item.id) {
             <tr><td>{{ item.date }}</td><td>{{ item.transactionType }}</td><td>{{ item.mainCategory }}</td><td>{{ item.subcategory }}</td><td>{{ item.paymentMethod }}</td><td class="description-cell">{{ item.notes || '—' }}</td><td class="amount-cell">{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</td></tr>
           }
           </tbody>
         </table>
         </div>
+        <nav class="pagination" aria-label="Transaction history pages">
+          <label class="page-size-control"><span>Rows per page</span>
+            <select [value]="pageSize()" (change)="setPageSize($event)">
+              @for (size of pageSizes; track size) { <option [value]="size">{{ size }}</option> }
+            </select>
+          </label>
+          <span class="page-indicator">Page {{ currentPage() }} of {{ totalPages }}</span>
+          <div class="pagination-buttons">
+            <button class="button button-quiet" type="button" (click)="changePage(-1)" [disabled]="currentPage() <= 1">Previous</button>
+            <button class="button button-quiet" type="button" (click)="changePage(1)" [disabled]="currentPage() >= totalPages">Next</button>
+          </div>
+        </nav>
       }
     </section>
 
