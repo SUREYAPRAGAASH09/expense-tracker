@@ -63,7 +63,7 @@ export class App {
   ] as const;
   private autoTourChecked = false;
   protected readonly form = this.formBuilder.group({
-    date: [this.today(), Validators.required],
+    date: ['', Validators.required],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
     transactionType: ['' as TransactionType | '', Validators.required],
     mainCategory: ['', Validators.required],
@@ -137,7 +137,7 @@ export class App {
       this.transactions.update((items) => [saved, ...items]);
       this.setFormMessage('Transaction saved on this device.', 'success');
       this.form.reset({
-        date: this.today(),
+        date: '',
         amount: null,
         transactionType: '',
         mainCategory: '',
@@ -434,9 +434,4 @@ export class App {
     this.formMessageType.set(type);
   }
 
-  private today(): string {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60_000;
-    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
-  }
 }
