@@ -15,9 +15,9 @@
           <p class="eyebrow">YOUR DATA</p>
           <h2 id="file-heading">CSV file connection</h2>
         </div>
-        <span class="status-pill" [class.connected]="csv.status() === 'connected'" role="status">
+        <span class="status-pill" [class.connected]="csv.status() === 'connected'" [class.download-mode]="csv.status() === 'download' || csv.status() === 'unsupported'" role="status">
           <span class="status-dot" aria-hidden="true"></span>
-          {{ csv.status() === 'connected' ? 'Connected' : csv.status() === 'unsupported' ? 'Download mode' : 'Not connected' }}
+          {{ csv.status() === 'connected' ? 'Connected' : csv.status() === 'unsupported' || csv.status() === 'download' ? 'Download mode' : 'Not connected' }}
         </span>
       </div>
 
@@ -25,7 +25,7 @@
         <span class="file-icon" aria-hidden="true">CSV</span>
         <div class="file-detail">
           <strong>{{ csv.fileName() ?? 'No CSV file selected' }}</strong>
-          <span>{{ csv.status() === 'connected' ? 'Read and write access is ready' : csv.status() === 'unsupported' ? 'Entries will be downloaded as CSV files' : 'Select an existing file or create a new one' }}</span>
+          <span>{{ csv.status() === 'connected' ? 'Read and write access is ready' : csv.status() === 'download' ? 'Loaded for this session; updates download as CSV' : csv.status() === 'unsupported' ? 'Entries will be downloaded as CSV files' : 'Select an existing file or create a new one' }}</span>
         </div>
       </div>
 
@@ -40,13 +40,17 @@
           @if (csv.status() === 'connected') {
             <button class="button button-quiet" type="button" (click)="disconnect()">Disconnect</button>
           }
+          <button class="button button-quiet" type="button" (click)="csvImport.click()">Import CSV for download mode</button>
         </div>
       } @else {
         <div class="fallback-panel">
-          <p>This browser cannot edit a selected file directly. You can still enter transactions here; each entry downloads an updated CSV copy.</p>
+          <p>This browser cannot edit a selected file directly. Import an existing CSV to continue it, or start with a blank file. Each entry downloads an updated CSV copy.</p>
+          <button class="button button-secondary" type="button" (click)="csvImport.click()">Import existing CSV</button>
           <button class="button button-primary" type="button" (click)="csv.downloadCsvTemplate()">Download blank CSV</button>
         </div>
       }
+
+      <input #csvImport class="visually-hidden" type="file" (change)="importCsv($event)" aria-label="Choose a CSV file to import">
 
       @if (message()) {
         <p class="notice" [class.notice-error]="messageType() === 'error'" [class.notice-success]="messageType() === 'success'" [attr.role]="messageType() === 'error' ? 'alert' : 'status'" [attr.aria-live]="messageType() === 'error' ? 'assertive' : 'polite'">
@@ -123,7 +127,7 @@
 
         @if (!canEnterTransactions) {
           <p class="form-hint">Connect a CSV file above to enable transaction entry.</p>
-        } @else if (csv.status() === 'unsupported') {
+        } @else if (csv.status() === 'unsupported' || csv.status() === 'download') {
           <p class="form-hint">Transactions are added to a temporary in-memory CSV and downloaded after each entry. Keep the latest download; this browser session does not retain it.</p>
         }
         <div class="form-actions">

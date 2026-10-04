@@ -32,6 +32,7 @@ fieldset:disabled .field { opacity: .58; }
 .privacy-note p { display: grid; gap: 4px; margin: 0; }
 .privacy-note strong { color: #34443a; font-size: 12px; }
 .privacy-note p span { color: #76837b; font-size: 11px; line-height: 1.5; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
 @media (max-width: 560px) {
   .form-card { padding: 21px 17px; border-radius: 16px; }
   .form-grid { grid-template-columns: 1fr; }

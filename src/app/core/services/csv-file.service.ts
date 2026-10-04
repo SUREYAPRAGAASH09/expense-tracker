@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { CSV_HEADER_ROW, CSV_HEADERS } from '../constants/csv-schema';
+import { CSV_HEADER_ROW, CSV_HEADERS, LEGACY_CSV_HEADERS } from '../constants/csv-schema';
 import { Transaction } from '../models/transaction.model';
 
 type FilePermissionMode = 'read' | 'readwrite';
@@ -19,13 +19,7 @@ interface CsvFileHandle {
 }
 
 interface FilePickerWindow extends Window {
-  showOpenFilePicker?: (options: {
-    multiple: false;
-    types: Array<{
-      description: string;
-      accept: Record<string, string[]>;
-    }>;
-  }) => Promise<CsvFileHandle[]>;
+  showOpenFilePicker?: (options?: { multiple?: false }) => Promise<CsvFileHandle[]>;
 
   showSaveFilePicker?: (options: {
     suggestedName: string;
@@ -36,13 +30,14 @@ interface FilePickerWindow extends Window {
   }) => Promise<CsvFileHandle>;
 }
 
-export type CsvConnectionStatus = 'unsupported' | 'disconnected' | 'connected';
+export type CsvConnectionStatus = 'unsupported' | 'disconnected' | 'connected' | 'download';
 
 @Injectable({ providedIn: 'root' })
 export class CsvFileService {
   private readonly pickerWindow = window as FilePickerWindow;
 
   private fileHandle: CsvFileHandle | null = null;
+  private usingFallbackFile = false;
 
   // Used by browsers that do not support the File System Access API.
   private fallbackFileName = 'expense-tracker.csv';
@@ -68,17 +63,9 @@ export class CsvFileService {
       throw new Error('unsupported');
     }
 
-    const [handle] = await picker.call(this.pickerWindow, {
-      multiple: false,
-      types: [
-        {
-          description: 'CSV files',
-          accept: {
-            'text/csv': ['.csv'],
-          },
-        },
-      ],
-    });
+    // Android file providers sometimes label CSV files with a MIME type other
+    // than text/csv. Let the picker show all files and validate the contents.
+    const [handle] = await picker.call(this.pickerWindow, { multiple: false });
 
     let permission: FilePermissionState;
 
@@ -97,7 +84,7 @@ export class CsvFileService {
     try {
       const file = await handle.getFile();
 
-      this.validateCsvHeader(await file.text());
+      this.normalizeCsvContents(await file.text());
     } catch (error) {
       if (
         error instanceof Error &&
@@ -117,6 +104,7 @@ export class CsvFileService {
     }
 
     this.fileHandle = handle;
+    this.usingFallbackFile = false;
     this.fileName.set(handle.name);
     this.status.set('connected');
   }
@@ -132,13 +120,13 @@ export class CsvFileService {
     try {
       const contents = await file.text();
 
-      this.validateCsvHeader(contents);
+      this.fallbackContents = this.normalizeCsvContents(contents);
 
-      this.fallbackContents = contents;
       this.fallbackFileName = file.name;
+      this.usingFallbackFile = true;
 
       this.fileName.set(file.name);
-      this.status.set('connected');
+      this.status.set('download');
     } catch (error) {
       if (
         error instanceof Error &&
@@ -173,7 +161,7 @@ export class CsvFileService {
     const existingFile = await handle.getFile();
 
     if (existingFile.size > 0) {
-      this.validateCsvHeader(await existingFile.text());
+      this.normalizeCsvContents(await existingFile.text());
 
       this.fileHandle = handle;
       this.fileName.set(handle.name);
@@ -214,6 +202,7 @@ export class CsvFileService {
     }
 
     this.fileHandle = handle;
+    this.usingFallbackFile = false;
     this.fileName.set(handle.name);
     this.status.set('connected');
   }
@@ -254,7 +243,7 @@ export class CsvFileService {
      * The CSV is maintained in memory and the updated
      * contents are downloaded after every transaction.
      */
-    if (!this.supportsDirectFileAccess) {
+    if (this.usingFallbackFile || !this.supportsDirectFileAccess) {
       const lineBreak =
         this.fallbackContents.length > 0 &&
         !/[\r\n]$/.test(this.fallbackContents)
@@ -301,19 +290,17 @@ export class CsvFileService {
       const file = await handle.getFile();
       const current = await file.text();
 
-      this.validateCsvHeader(current);
-
-      const lineBreak =
-        current.length > 0 && !/[\r\n]$/.test(current)
-          ? '\r\n'
-          : '';
+      const normalized = this.normalizeCsvContents(current);
 
       const writable = await handle.createWritable();
 
       try {
-        await writable.write(
-          `${current}${lineBreak}${row}\r\n`
-        );
+        const base = normalized === current ? current : normalized;
+        const separator =
+          base.length > 0 && !/[\r\n]$/.test(base)
+            ? '\r\n'
+            : '';
+        await writable.write(`${base}${separator}${row}\r\n`);
 
         await writable.close();
       } catch (error) {
@@ -394,26 +381,14 @@ export class CsvFileService {
   }
 
   validateCsvHeader(contents: string): void {
-    const firstLine =
-      contents
-        .replace(/^\uFEFF/, '')
-        .split(/\r\n|\n|\r/, 1)[0] ?? '';
-
-    const actual = this.parseCsvRow(firstLine);
-
-    const valid =
-      actual.length === CSV_HEADERS.length &&
-      CSV_HEADERS.every(
-        (header, index) => actual[index] === header
-      );
-
-    if (!valid) {
-      throw new Error('invalid-csv');
-    }
+    this.normalizeCsvContents(contents);
   }
 
   disconnect(): void {
     this.fileHandle = null;
+    this.usingFallbackFile = false;
+    this.fallbackContents = `${CSV_HEADER_ROW}\r\n`;
+    this.fallbackFileName = 'expense-tracker.csv';
 
     this.fileName.set(null);
 
@@ -424,42 +399,64 @@ export class CsvFileService {
     );
   }
 
-  private parseCsvRow(row: string): string[] {
-    const cells: string[] = [];
+  private normalizeCsvContents(contents: string): string {
+    const clean = contents.replace(/^\uFEFF/, '');
+    const records = this.parseCsvRecords(clean);
+    const header = records[0] ?? [];
+    const isCurrent = this.headersMatch(header, CSV_HEADERS);
+    const isLegacy = this.headersMatch(header, LEGACY_CSV_HEADERS);
+    if (!isCurrent && !isLegacy) throw new Error('invalid-csv');
+    if (isCurrent) return clean;
 
+    const retainedColumns = [0, 1, 2, 3, 7, 8];
+    const normalized = [
+      [...CSV_HEADERS],
+      ...records.slice(1).filter((record) => !(record.length === 1 && record[0] === '')).map((record) => {
+        if (record.length !== LEGACY_CSV_HEADERS.length) throw new Error('invalid-csv');
+        return retainedColumns.map((column) => record[column]);
+      }),
+    ];
+    return normalized
+      .map((record) => record.map((value) => this.escapeCsvValue(value)).join(','))
+      .join('\r\n') + '\r\n';
+  }
+
+  private headersMatch(actual: readonly string[], expected: readonly string[]): boolean {
+    return actual.length === expected.length && expected.every((value, index) => actual[index] === value);
+  }
+
+  private parseCsvRecords(contents: string): string[][] {
+    const records: string[][] = [];
+    let record: string[] = [];
     let value = '';
     let quoted = false;
 
-    for (
-      let index = 0;
-      index < row.length;
-      index += 1
-    ) {
-      const char = row[index];
-
-      if (
-        char === '"' &&
-        quoted &&
-        row[index + 1] === '"'
-      ) {
+    for (let index = 0; index < contents.length; index += 1) {
+      const char = contents[index];
+      if (char === '"' && quoted && contents[index + 1] === '"') {
         value += '"';
         index += 1;
       } else if (char === '"') {
         quoted = !quoted;
       } else if (char === ',' && !quoted) {
-        cells.push(value);
+        record.push(value);
         value = '';
+      } else if ((char === '\r' || char === '\n') && !quoted) {
+        record.push(value);
+        if (!(record.length === 1 && record[0] === '')) records.push(record);
+        record = [];
+        value = '';
+        if (char === '\r' && contents[index + 1] === '\n') index += 1;
       } else {
         value += char;
       }
     }
 
-    if (quoted) {
-      throw new Error('invalid-csv');
+    if (quoted) throw new Error('invalid-csv');
+    if (value.length > 0 || record.length > 0) {
+      record.push(value);
+      records.push(record);
     }
-
-    cells.push(value);
-
-    return cells;
+    return records;
   }
 }

@@ -46,7 +46,7 @@ export class App {
   }
 
   protected get canEnterTransactions(): boolean {
-    return this.csv.status() === 'connected' || this.csv.status() === 'unsupported';
+    return ['connected', 'unsupported', 'download'].includes(this.csv.status());
   }
 
   protected get subcategories(): readonly string[] {
@@ -126,6 +126,15 @@ export class App {
     await this.runFileAction(() => this.csv.createCsvFile());
   }
 
+  protected async importCsv(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    await this.runFileAction(() => this.csv.selectFallbackFile(file));
+  }
+
   protected disconnect(): void {
     this.csv.disconnect();
     this.setMessage('CSV file disconnected.', 'success');
@@ -136,7 +145,12 @@ export class App {
     this.messageType.set('');
     try {
       await action();
-      this.setMessage('CSV file is ready. Its existing data has been preserved.', 'success');
+      this.setMessage(
+        this.csv.status() === 'download'
+          ? 'CSV loaded for this session. New entries will download an updated copy.'
+          : 'CSV file is ready. Its existing data has been preserved.',
+        'success',
+      );
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       const code = error instanceof Error ? error.message : '';

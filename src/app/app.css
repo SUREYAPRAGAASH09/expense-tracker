@@ -24,8 +24,10 @@ h1 { margin-bottom: 7px; color: #17231e; font-size: clamp(28px, 5vw, 36px); lett
 h2 { margin: 0; color: #1d2b24; font-size: 20px; letter-spacing: -.025em; }
 .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid #e8ece9; border-radius: 999px; color: #68756e; background: #fafbfa; font-size: 12px; font-weight: 650; white-space: nowrap; }
 .status-pill.connected { color: #146545; border-color: #cbe6d8; background: #f1faf5; }
+.status-pill.download-mode { color: #79521d; border-color: #efe1c6; background: #fffaf0; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #a3ada7; }
 .connected .status-dot { background: #24a46a; box-shadow: 0 0 0 3px #24a46a1b; }
+.download-mode .status-dot { background: #d79b35; }
 .file-summary { display: flex; align-items: center; gap: 14px; padding: 17px; border: 1px solid #edf0ed; border-radius: 13px; background: #fafcfb; }
 .file-icon { display: grid; place-items: center; width: 42px; height: 46px; border: 1px solid #dce9e0; border-radius: 9px; color: #187450; background: #eff8f2; font-size: 10px; font-weight: 800; }
 .file-detail { display: grid; gap: 5px; min-width: 0; }
