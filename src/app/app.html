@@ -17,7 +17,7 @@
       </div>
     </header>
 
-    <!-- <section class="file-card" aria-labelledby="file-heading">
+    <section class="file-card" aria-labelledby="file-heading">
       <div class="section-heading">
         <div>
           <p class="eyebrow">YOUR DATA</p>
@@ -29,21 +29,21 @@
         </span>
       </div>
 
-      <div class="file-summary">
+      <!-- <div class="file-summary">
         <span class="file-icon" aria-hidden="true">DB</span>
         <div class="file-detail">
           <strong>{{ transactions().length }} saved transaction{{ transactions().length === 1 ? '' : 's' }}</strong>
           <span>Stored in this browser on this device. No account or server required.</span>
         </div>
-      </div>
+      </div> -->
 
       <div class="button-row">
         <button class="button button-primary" type="button" (click)="exportCsv()" [disabled]="database.status() !== 'ready'">Download CSV backup</button>
-        <button class="button button-secondary" type="button" (click)="csvImport.click()" [disabled]="database.status() !== 'ready'">Import transactions from CSV</button>
+        <!-- <button class="button button-secondary" type="button" (click)="csvImport.click()" [disabled]="database.status() !== 'ready'">Import transactions from CSV</button> -->
       </div>
-      <p class="form-hint">Your browser manages this local database. Download CSV backups regularly so you can keep a copy outside the browser.</p>
+      <!-- <p class="form-hint">Your browser manages this local database. Download CSV backups regularly so you can keep a copy outside the browser.</p> -->
 
-      <input #csvImport class="visually-hidden" type="file" accept=".csv,text/csv" (change)="importCsv($event)" aria-label="Choose a CSV file to import">
+      <!-- <input #csvImport class="visually-hidden" type="file" accept=".csv,text/csv" (change)="importCsv($event)" aria-label="Choose a CSV file to import"> -->
 
       @if (message()) {
         <p class="notice" [class.notice-error]="messageType() === 'error'" [class.notice-success]="messageType() === 'success'" [attr.role]="messageType() === 'error' ? 'alert' : 'status'" [attr.aria-live]="messageType() === 'error' ? 'assertive' : 'polite'">
@@ -51,7 +51,7 @@
           {{ message() }}
         </p>
       }
-    </section> -->
+    </section>
 
     <details class="form-card transaction-entry-panel" aria-labelledby="transaction-heading" data-tour="entry" [class.tour-highlight]="isTourTarget('entry')">
       <summary class="expansion-summary">
