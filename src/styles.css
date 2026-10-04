@@ -54,11 +54,12 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .totals-table th, .totals-table td, .transaction-table th, .transaction-table td { padding: 12px 14px; border-bottom: 1px solid #edf0ed; font-size: 12px; }
 .totals-table th { color: #526158; background: #f7faf8; font-size: 11px; }
 .totals-table td { color: #26352d; font-weight: 700; }
-.transaction-table { min-width: 790px; }
+.transaction-table { min-width: 980px; }
 .transaction-table th { position: sticky; top: 0; color: #526158; background: #f7faf8; font-size: 11px; white-space: nowrap; }
 .transaction-table td { color: #34433a; }
 .transaction-table tbody tr:last-child td { border-bottom: 0; }
 .transaction-table .amount-cell { color: #26352d; font-weight: 700; text-align: right; white-space: nowrap; }
+.transaction-table .description-cell { min-width: 180px; max-width: 320px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .transaction-table th:last-child { text-align: right; }
 .transaction-table-scroll { margin-top: 10px; border: 1px solid #edf0ed; border-radius: 10px; }
 .tour-highlight { position: relative; z-index: 1001; border-radius: 12px; box-shadow: 0 0 0 4px #3f9a70, 0 0 0 9px #3f9a7040; }
