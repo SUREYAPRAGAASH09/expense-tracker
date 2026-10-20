@@ -32,7 +32,7 @@ export const CATEGORY_OPTIONS: Record<TransactionType, Record<string, readonly s
     'Other Income': ['Cashback', 'Rewards', 'Refund', 'Tax refund', 'Gifts received', 'Scholarship', 'Prize money', 'Commission','Interest from Bank', 'Other income'],
   },
   Transfer: {
-    'Transfers — NOT Expenses': ['Bank → Bank', 'Bank → Wallet', 'Wallet → Bank', 'Bank → Cash', 'Cash → Bank', 'Credit Card → Bank', 'Savings Account → Current Account', 'Account → Account'],
+    'Transfers': ['Bank → Bank', 'Bank → Wallet', 'Wallet → Bank', 'Bank → Cash', 'Cash → Bank', 'Credit Card → Bank', 'Savings Account → Current Account', 'Account → Account'],
   },
   Refund: {
     'Refunds & Reimbursements': ['Shopping refund', 'Food refund', 'Travel refund', 'Medical reimbursement', 'Work reimbursement', 'Cancelled order refund', 'Subscription refund', 'Bank refund', 'Insurance claim', 'Other reimbursement'],

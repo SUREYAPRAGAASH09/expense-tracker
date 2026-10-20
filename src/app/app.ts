@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { KeyValuePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CsvFileService } from './core/services/csv-file.service';
 import { TransactionDatabaseService } from './core/services/transaction-database.service';
@@ -12,7 +13,7 @@ interface InstallPromptEvent extends Event {
 }
 
 @Component({
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, KeyValuePipe],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
@@ -21,6 +22,8 @@ export class App {
   protected readonly csv = inject(CsvFileService);
   protected readonly database = inject(TransactionDatabaseService);
   protected readonly transactions = signal<TransactionRecord[]>([]);
+  protected readonly editingTransaction = signal<TransactionRecord | null>(null);
+  protected readonly categoryOptions = CATEGORY_OPTIONS;
   protected readonly dateFilter = signal<'all' | 'year' | 'month' | 'custom'>('all');
   protected readonly selectedYear = signal(String(new Date().getFullYear()));
   protected readonly selectedMonth = signal('01');
@@ -313,6 +316,39 @@ export class App {
     }
   }
 
+  protected startEditing(item: TransactionRecord): void { this.editingTransaction.set({ ...item }); }
+  protected cancelEditing(): void { this.editingTransaction.set(null); }
+  protected updateEdit(field: keyof Transaction, event: Event): void {
+    const draft = this.editingTransaction();
+    if (!draft) return;
+    const input = event.target as HTMLInputElement | HTMLSelectElement;
+    const value = field === 'amount' ? Number(input.value) : input.value;
+    const next = { ...draft, [field]: value } as TransactionRecord;
+    if (field === 'transactionType') {
+      const category = Object.keys(CATEGORY_OPTIONS[next.transactionType])[0];
+      next.mainCategory = category;
+      next.subcategory = CATEGORY_OPTIONS[next.transactionType][category][0];
+    } else if (field === 'mainCategory') {
+      next.subcategory = CATEGORY_OPTIONS[next.transactionType][next.mainCategory][0];
+    }
+    this.editingTransaction.set(next);
+  }
+  protected async saveEdit(): Promise<void> {
+    const draft = this.editingTransaction();
+    if (!draft || !draft.date || !draft.transactionType || !draft.mainCategory || !draft.subcategory || !draft.paymentMethod || !Number.isFinite(draft.amount) || draft.amount <= 0) {
+      this.setMessage('Complete every transaction field and enter an amount greater than zero.', 'error');
+      return;
+    }
+    try {
+      await this.database.update(draft);
+      this.transactions.update((items) => items.map((item) => item.id === draft.id ? draft : item));
+      this.editingTransaction.set(null);
+      this.setMessage('Transaction updated.', 'success');
+    } catch {
+      this.setMessage('The transaction could not be updated. Please try again.', 'error');
+    }
+  }
+
   protected exportCsv(): void {
     this.csv.downloadTransactions(this.transactions());
     this.setMessage('CSV backup downloaded.', 'success');
@@ -365,10 +401,12 @@ export class App {
   }
 
   protected get transactionTotals(): Record<TransactionType, number> {
-    return this.filteredTransactions.reduce((totals, item) => {
+    const totals = this.filteredTransactions.reduce((totals, item) => {
       totals[item.transactionType] += item.amount;
       return totals;
     }, { Expense: 0, Income: 0, Transfer: 0, Refund: 0 });
+    totals.Income -= totals.Transfer;
+    return totals;
   }
 
   protected get totalPages(): number {

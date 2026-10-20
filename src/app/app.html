@@ -237,7 +237,7 @@
       <div class="table-scroll totals-table-scroll" data-tour="totals" [class.tour-highlight]="isTourTarget('totals')">
         <table class="totals-table">
           <caption>Totals by transaction type for the selected filters</caption>
-          <thead><tr><th scope="col">Expense</th><th scope="col">Income</th><th scope="col">Transfer</th><th scope="col">Refund</th></tr></thead>
+          <thead><tr><th scope="col">Expense</th><th scope="col">Income (after transfers)</th><th scope="col">Transfer</th><th scope="col">Refund</th></tr></thead>
           <tbody><tr><td>₹{{ transactionTotals.Expense.toFixed(2) }}</td><td>₹{{ transactionTotals.Income.toFixed(2) }}</td><td>₹{{ transactionTotals.Transfer.toFixed(2) }}</td><td>₹{{ transactionTotals.Refund.toFixed(2) }}</td></tr></tbody>
         </table>
       </div>
@@ -251,7 +251,19 @@
           <thead data-tour="table" [class.tour-highlight]="isTourTarget('table')"><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Description / Notes</th><th scope="col">Amount</th></tr></thead>
           <tbody>
           @for (item of paginatedTransactions; track item.id) {
-            <tr><td>{{ item.date }}</td><td>{{ item.transactionType }}</td><td>{{ item.mainCategory }}</td><td>{{ item.subcategory }}</td><td>{{ item.paymentMethod }}</td><td class="description-cell">{{ item.notes || '—' }}</td><td class="amount-cell" [class.negative-amount]="item.transactionType === 'Expense'" [class.positive-amount]="item.transactionType !== 'Expense'">{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</td></tr>
+            @if (editingTransaction()?.id === item.id) {
+              <tr class="editing-row">
+                <td><input aria-label="Date" type="date" [value]="editingTransaction()!.date" (change)="updateEdit('date', $event)"></td>
+                <td><select aria-label="Transaction type" [value]="editingTransaction()!.transactionType" (change)="updateEdit('transactionType', $event)">@for (type of transactionTypes; track type) { <option [value]="type">{{ type }}</option> }</select></td>
+                <td><select aria-label="Category" [value]="editingTransaction()!.mainCategory" (change)="updateEdit('mainCategory', $event)">@for (category of categoryOptions[editingTransaction()!.transactionType] | keyvalue; track category.key) { <option [value]="category.key">{{ category.key }}</option> }</select></td>
+                <td><select aria-label="Subcategory" [value]="editingTransaction()!.subcategory" (change)="updateEdit('subcategory', $event)">@for (subcategory of categoryOptions[editingTransaction()!.transactionType][editingTransaction()!.mainCategory]; track subcategory) { <option [value]="subcategory">{{ subcategory }}</option> }</select></td>
+                <td><select aria-label="Payment method" [value]="editingTransaction()!.paymentMethod" (change)="updateEdit('paymentMethod', $event)">@for (method of paymentMethods; track method) { <option [value]="method">{{ method }}</option> }</select></td>
+                <td><input aria-label="Description / Notes" type="text" [value]="editingTransaction()!.notes" (input)="updateEdit('notes', $event)"></td>
+                <td><input aria-label="Amount" type="number" min="0.01" step="0.01" [value]="editingTransaction()!.amount" (input)="updateEdit('amount', $event)"><div class="row-actions"><button class="button button-primary" type="button" (click)="saveEdit()">Save</button><button class="button button-quiet" type="button" (click)="cancelEditing()">Cancel</button></div></td>
+              </tr>
+            } @else {
+              <tr><td>{{ item.date }}</td><td>{{ item.transactionType }}</td><td>{{ item.mainCategory }}</td><td>{{ item.subcategory }}</td><td>{{ item.paymentMethod }}</td><td class="description-cell">{{ item.notes || '—' }}</td><td class="amount-cell" [class.negative-amount]="item.transactionType === 'Expense'" [class.positive-amount]="item.transactionType !== 'Expense'">{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}<button class="button button-quiet" type="button" (click)="startEditing(item)" [attr.aria-label]="'Edit transaction from ' + item.date">Edit</button></td></tr>
+            }
           }
           </tbody>
         </table>
