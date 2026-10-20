@@ -77,11 +77,11 @@
 
       <div class="button-row">
         <button class="button button-primary" type="button" (click)="exportCsv()" [disabled]="database.status() !== 'ready'">Download CSV backup</button>
-        <!-- <button class="button button-secondary" type="button" (click)="csvImport.click()" [disabled]="database.status() !== 'ready'">Import transactions from CSV</button> -->
+        <button class="button button-secondary" type="button" (click)="csvImport.click()" [disabled]="database.status() !== 'ready'">Import CSV backup</button>
       </div>
-      <!-- <p class="form-hint">Your browser manages this local database. Download CSV backups regularly so you can keep a copy outside the browser.</p> -->
+      <p class="form-hint">Choose a CSV backup exported from this app. Imported transactions are added to the transactions already on this device.</p>
 
-      <!-- <input #csvImport class="visually-hidden" type="file" accept=".csv,text/csv" (change)="importCsv($event)" aria-label="Choose a CSV file to import"> -->
+      <input #csvImport class="visually-hidden" type="file" accept=".csv,text/csv" (change)="importCsv($event)" aria-label="Choose a CSV backup to import">
 
       @if (message()) {
         <p class="notice" [class.notice-error]="messageType() === 'error'" [class.notice-success]="messageType() === 'success'" [attr.role]="messageType() === 'error' ? 'alert' : 'status'" [attr.aria-live]="messageType() === 'error' ? 'assertive' : 'polite'">
@@ -237,7 +237,7 @@
       <div class="table-scroll totals-table-scroll" data-tour="totals" [class.tour-highlight]="isTourTarget('totals')">
         <table class="totals-table">
           <caption>Totals by transaction type for the selected filters</caption>
-          <thead><tr><th scope="col">Expense</th><th scope="col">Income (after transfers)</th><th scope="col">Transfer</th><th scope="col">Refund</th></tr></thead>
+          <thead><tr><th scope="col">Expense</th><th scope="col">Income</th><th scope="col">Transfer</th><th scope="col">Refund</th></tr></thead>
           <tbody><tr><td>₹{{ transactionTotals.Expense.toFixed(2) }}</td><td>₹{{ transactionTotals.Income.toFixed(2) }}</td><td>₹{{ transactionTotals.Transfer.toFixed(2) }}</td><td>₹{{ transactionTotals.Refund.toFixed(2) }}</td></tr></tbody>
         </table>
       </div>
