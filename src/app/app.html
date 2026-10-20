@@ -248,7 +248,7 @@
       } @else {
         <div class="table-scroll transaction-table-scroll">
         <table class="transaction-table">
-          <thead data-tour="table" [class.tour-highlight]="isTourTarget('table')"><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Description / Notes</th><th scope="col">Amount</th></tr></thead>
+          <thead data-tour="table" [class.tour-highlight]="isTourTarget('table')"><tr><th scope="col">Date</th><th scope="col">Transaction type</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Payment method</th><th scope="col">Description / Notes</th><th scope="col">Amount</th><th scope="col">Actions</th></tr></thead>
           <tbody>
           @for (item of paginatedTransactions; track item.id) {
             @if (editingTransaction()?.id === item.id) {
@@ -259,10 +259,11 @@
                 <td><select aria-label="Subcategory" [value]="editingTransaction()!.subcategory" (change)="updateEdit('subcategory', $event)">@for (subcategory of categoryOptions[editingTransaction()!.transactionType][editingTransaction()!.mainCategory]; track subcategory) { <option [value]="subcategory">{{ subcategory }}</option> }</select></td>
                 <td><select aria-label="Payment method" [value]="editingTransaction()!.paymentMethod" (change)="updateEdit('paymentMethod', $event)">@for (method of paymentMethods; track method) { <option [value]="method">{{ method }}</option> }</select></td>
                 <td><input aria-label="Description / Notes" type="text" [value]="editingTransaction()!.notes" (input)="updateEdit('notes', $event)"></td>
-                <td><input aria-label="Amount" type="number" min="0.01" step="0.01" [value]="editingTransaction()!.amount" (input)="updateEdit('amount', $event)"><div class="row-actions"><button class="button button-primary" type="button" (click)="saveEdit()">Save</button><button class="button button-quiet" type="button" (click)="cancelEditing()">Cancel</button></div></td>
+                <td><input aria-label="Amount" type="number" min="0.01" step="0.01" [value]="editingTransaction()!.amount" (input)="updateEdit('amount', $event)"></td>
+                <td class="actions-cell"><button class="icon-button" type="button" (click)="saveEdit()" aria-label="Save changes" title="Save changes">✓</button><button class="icon-button" type="button" (click)="cancelEditing()" aria-label="Cancel editing" title="Cancel editing">×</button></td>
               </tr>
             } @else {
-              <tr><td>{{ item.date }}</td><td>{{ item.transactionType }}</td><td>{{ item.mainCategory }}</td><td>{{ item.subcategory }}</td><td>{{ item.paymentMethod }}</td><td class="description-cell">{{ item.notes || '—' }}</td><td class="amount-cell" [class.negative-amount]="item.transactionType === 'Expense'" [class.positive-amount]="item.transactionType !== 'Expense'">{{ item.transactionType === 'Expense' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}<button class="button button-quiet" type="button" (click)="startEditing(item)" [attr.aria-label]="'Edit transaction from ' + item.date">Edit</button></td></tr>
+              <tr><td>{{ item.date }}</td><td>{{ item.transactionType }}</td><td>{{ item.mainCategory }}</td><td>{{ item.subcategory }}</td><td>{{ item.paymentMethod }}</td><td class="description-cell">{{ item.notes || '—' }}</td><td class="amount-cell" [class.negative-amount]="item.transactionType === 'Expense' || item.transactionType === 'Transfer'" [class.positive-amount]="item.transactionType !== 'Expense' && item.transactionType !== 'Transfer'">{{ item.transactionType === 'Expense' || item.transactionType === 'Transfer' ? '−' : '+' }}₹{{ item.amount.toFixed(2) }}</td><td class="actions-cell"><button class="icon-button" type="button" (click)="startEditing(item)" [attr.aria-label]="'Edit transaction from ' + item.date" title="Edit">✎</button><button class="icon-button delete-button" type="button" (click)="deleteTransaction(item)" [attr.aria-label]="'Delete transaction from ' + item.date" title="Delete">⌫</button></td></tr>
             }
           }
           </tbody>

@@ -130,6 +130,17 @@ export class TransactionDatabaseService {
     });
   }
 
+  async delete(id: number): Promise<void> {
+    const database = await this.openDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const tx = database.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('database-write-failed'));
+      tx.onabort = () => reject(tx.error ?? new Error('database-write-failed'));
+    });
+  }
+
   private async getAllFrom(database: IDBDatabase): Promise<TransactionRecord[]> {
     return new Promise((resolve, reject) => {
       const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll();

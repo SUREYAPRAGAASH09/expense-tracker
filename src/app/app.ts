@@ -349,6 +349,19 @@ export class App {
     }
   }
 
+  protected async deleteTransaction(item: TransactionRecord): Promise<void> {
+    if (!window.confirm(`Delete the transaction from ${item.date}? This cannot be undone.`)) return;
+    try {
+      await this.database.delete(item.id);
+      this.transactions.update((items) => items.filter((transaction) => transaction.id !== item.id));
+      if (this.editingTransaction()?.id === item.id) this.editingTransaction.set(null);
+      if (this.currentPage() > this.totalPages) this.currentPage.set(this.totalPages);
+      this.setMessage('Transaction deleted.', 'success');
+    } catch {
+      this.setMessage('The transaction could not be deleted. Please try again.', 'error');
+    }
+  }
+
   protected exportCsv(): void {
     this.csv.downloadTransactions(this.transactions());
     this.setMessage('CSV backup downloaded.', 'success');
