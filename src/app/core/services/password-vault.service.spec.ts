@@ -26,6 +26,9 @@ describe('PasswordVaultService', () => {
         records.push(saved);
         return structuredClone(saved);
       },
+      updatePasswordVaultRecord: async (updated: PasswordVaultRecord) => {
+        records = records.map((record) => record.id === updated.id ? structuredClone(updated) : record);
+      },
       deletePasswordVaultRecord: async (id: number) => { records = records.filter((record) => record.id !== id); },
       commitPasswordVaultRotation: async (nextSettings: PasswordVaultSettings, nextRecords: readonly PasswordVaultRecord[]) => {
         if (failRotationCommit) throw new Error('simulated-commit-failure');
@@ -74,6 +77,17 @@ describe('PasswordVaultService', () => {
       { site: 'one.example', password: 'secret-one' },
       { site: 'two.example', password: 'secret-two' },
     ]);
+  });
+
+  it('updates an entry password only after verifying the manager password', async () => {
+    await service.setup(MANAGER_PASSWORD);
+    const saved = await service.add('example.com', 'old-secret', MANAGER_PASSWORD);
+    await expect(service.updatePassword(saved.id, 'new-secret', 'wrong password')).rejects.toThrow('incorrect-manager-password');
+    const updated = await service.updatePassword(saved.id, 'new-secret', MANAGER_PASSWORD);
+
+    expect(updated.iv).not.toEqual(saved.iv);
+    expect(updated.ciphertext).not.toEqual(saved.ciphertext);
+    await expect(service.reveal(updated, MANAGER_PASSWORD)).resolves.toBe('new-secret');
   });
 
   it('authenticates the site name as additional data and rejects tampered ciphertext', async () => {

@@ -55,6 +55,23 @@ export class PasswordVaultService {
     return new TextDecoder().decode(plaintext);
   }
 
+  async updatePassword(id: number, password: string, managerPassword: string): Promise<PasswordVaultRecord> {
+    if (!password) throw new Error('invalid-password-entry');
+    const settings = await this.requireSettings();
+    const key = await this.keyForPassword(managerPassword, settings);
+    const record = (await this.database.listPasswordVaultRecords()).find((item) => item.id === id);
+    if (!record) throw new Error('password-entry-not-found');
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(record.site) },
+      key,
+      new TextEncoder().encode(password),
+    );
+    const updated = { ...record, iv: [...iv], ciphertext: [...new Uint8Array(ciphertext)] };
+    await this.database.updatePasswordVaultRecord(updated);
+    return updated;
+  }
+
   async exportEntries(managerPassword: string): Promise<Array<{ site: string; password: string }>> {
     const settings = await this.requireSettings();
     const key = await this.keyForPassword(managerPassword, settings);

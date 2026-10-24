@@ -199,6 +199,17 @@ export class TransactionDatabaseService {
     });
   }
 
+  async updatePasswordVaultRecord(record: PasswordVaultRecord): Promise<void> {
+    const database = await this.openDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const tx = database.transaction(PASSWORD_STORE, 'readwrite');
+      tx.objectStore(PASSWORD_STORE).put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('password-write-failed'));
+      tx.onabort = () => reject(tx.error ?? new Error('password-write-failed'));
+    });
+  }
+
   async replacePasswordVaultRecords(records: readonly PasswordVaultRecord[]): Promise<void> {
     const database = await this.openDatabase();
     await new Promise<void>((resolve, reject) => {

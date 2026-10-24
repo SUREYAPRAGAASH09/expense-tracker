@@ -67,7 +67,7 @@ export class App {
   protected readonly vaultCurrentPage = signal(1);
   protected readonly vaultPageSize = signal(10);
   protected readonly vaultPageSizes = [10, 25, 50];
-  protected readonly vaultDialog = signal<'setup' | 'add' | 'reveal' | 'rotate' | 'export' | null>(null);
+  protected readonly vaultDialog = signal<'setup' | 'add' | 'reveal' | 'edit' | 'rotate' | 'export' | null>(null);
   protected readonly vaultBusy = signal(false);
   protected readonly vaultMessage = signal('');
   protected readonly vaultMessageType = signal<'success' | 'error' | ''>('');
@@ -128,6 +128,10 @@ export class App {
     managerPassword: ['', Validators.required],
   });
   protected readonly vaultRevealForm = this.formBuilder.group({ password: ['', Validators.required] });
+  protected readonly vaultEditForm = this.formBuilder.group({
+    password: ['', Validators.required],
+    managerPassword: ['', Validators.required],
+  });
   protected readonly vaultRotateForm = this.formBuilder.group({
     currentPassword: ['', Validators.required],
     newPassword: ['', [Validators.required, Validators.minLength(12)]],
@@ -354,7 +358,7 @@ export class App {
         userPassword: password,
         content: [
           { text: 'Password Manager Backup', style: 'title' },
-          { text: `Exported ${new Date().toLocaleString()}. This PDF is protected with your password manager password.`, style: 'note' },
+          { text: `Exported ${new Date().toLocaleString()}. This PDF is password protected.`, style: 'note' },
           { table: { headerRows: 1, widths: ['35%', '65%'], body: [
             [{ text: 'Site', style: 'tableHeader' }, { text: 'Password', style: 'tableHeader' }],
             ...entries.map((entry) => [entry.site, entry.password]),
@@ -437,6 +441,31 @@ export class App {
     } finally { this.vaultBusy.set(false); }
   }
 
+  protected requestVaultEdit(record: PasswordVaultRecord): void {
+    this.selectedVaultRecord.set(record);
+    this.vaultEditForm.reset();
+    this.clearVaultMessage();
+    this.vaultDialog.set('edit');
+  }
+
+  protected async updateVaultEntryPassword(): Promise<void> {
+    const record = this.selectedVaultRecord();
+    const form = this.vaultEditForm;
+    if (form.invalid || !record) { form.markAllAsTouched(); return; }
+    const value = form.getRawValue();
+    this.vaultBusy.set(true);
+    try {
+      const updated = await this.passwordVault.updatePassword(record.id, value.password!, value.managerPassword!);
+      this.vaultRecords.update((items) => items.map((item) => item.id === updated.id ? updated : item));
+      this.revealedPasswords.update((values) => { const next = { ...values }; delete next[record.id]; return next; });
+      this.vaultEditForm.reset();
+      this.vaultDialog.set(null);
+      this.setVaultMessage(`Password updated for ${record.site}.`, 'success');
+    } catch (error) {
+      this.setVaultMessage(error instanceof Error && error.message === 'incorrect-manager-password' ? 'The manager password is incorrect.' : 'The saved password could not be updated.');
+    } finally { this.vaultBusy.set(false); }
+  }
+
   protected async rotateVaultKey(): Promise<void> {
     const form = this.vaultRotateForm;
     if (form.invalid) { form.markAllAsTouched(); this.setVaultMessage('Complete all fields. The new manager password must be at least 12 characters.', 'error'); return; }
@@ -472,6 +501,7 @@ export class App {
     this.vaultSetupForm.reset();
     this.vaultEntryForm.reset();
     this.vaultRevealForm.reset();
+    this.vaultEditForm.reset();
     this.vaultRotateForm.reset();
     this.vaultExportForm.reset();
   }
@@ -660,6 +690,13 @@ export class App {
         item.notes || '—',
         `${item.transactionType === 'Expense' || item.transactionType === 'Transfer' ? '−' : '+'}₹${item.amount.toFixed(2)}`,
       ]);
+      const totals = this.transactionTotals;
+      const totalRows = [
+        ['Expense', totals.Expense],
+        ['Income (after transfers)', totals.Income],
+        ['Transfer', totals.Transfer],
+        ['Refund', totals.Refund],
+      ].map(([type, amount]) => [String(type), `₹${Number(amount).toFixed(2)}`]);
       const selectedFilters = this.getTransactionExportFilters();
       const definition = {
         info: { title: 'Transaction Backup', subject: 'Encrypted transaction export' },
@@ -667,7 +704,12 @@ export class App {
         userPassword: pin,
         content: [
           { text: 'Transaction Backup', style: 'title' },
-          { text: `Exported ${new Date().toLocaleString()}. ${matchingTransactions.length} matching transaction${matchingTransactions.length === 1 ? '' : 's'}. This PDF is protected with your four-digit app lock PIN.`, style: 'note' },
+          { text: `Exported ${new Date().toLocaleString()}. ${matchingTransactions.length} matching transaction${matchingTransactions.length === 1 ? '' : 's'}. This PDF is password protected.`, style: 'note' },
+          { text: 'Totals shown in the app', style: 'sectionTitle' },
+          { table: { headerRows: 1, widths: ['*', 130], body: [
+            [{ text: 'Transaction type', style: 'tableHeader' }, { text: 'Amount', style: 'tableHeader' }],
+            ...totalRows,
+          ] }, layout: 'lightHorizontalLines' },
           { text: 'Selected filters', style: 'sectionTitle' },
           { table: { widths: [120, '*'], body: selectedFilters.map(([label, value]) => [
             { text: label, bold: true }, value,

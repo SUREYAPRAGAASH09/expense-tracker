@@ -58,6 +58,7 @@
                     <td class="vault-site">{{ record.site }}</td>
                     <td class="vault-password">{{ revealedPasswords()[record.id] ?? '••••••••••••' }}</td>
                     <td class="vault-row-actions">
+                      <button class="icon-button" type="button" (click)="requestVaultEdit(record)" [attr.aria-label]="'Edit password for ' + record.site" title="Edit password">✎</button>
                       <button class="icon-button" type="button" (click)="requestVaultReveal(record)" [attr.aria-label]="revealedPasswords()[record.id] ? 'Hide password for ' + record.site : 'Reveal password for ' + record.site" [title]="revealedPasswords()[record.id] ? 'Hide password' : 'Reveal password'">{{ revealedPasswords()[record.id] ? '◉' : '◌' }}</button>
                       @if (revealedPasswords()[record.id]) { <button class="icon-button" type="button" (click)="copyVaultPassword(record)" [attr.aria-label]="'Copy password for ' + record.site" title="Copy password">▢</button> }
                       <button class="icon-button vault-delete" type="button" (click)="deleteVaultEntry(record)" [attr.aria-label]="'Delete password for ' + record.site" title="Delete">⌫</button>
@@ -110,6 +111,15 @@
                 <label class="field"><span>Manager password</span><input type="password" formControlName="password" autocomplete="current-password" required></label>
                 @if (vaultMessage()) { <p class="field-error" role="alert">{{ vaultMessage() }}</p> }
                 <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Checking…' : 'Reveal password' }}</button></div>
+              </form>
+            } @else if (vaultDialog() === 'edit') {
+              <p class="eyebrow">UPDATE ENCRYPTED ENTRY</p><h2 id="vault-dialog-title">Edit password</h2>
+              <p class="vault-dialog-copy">Enter the new password for {{ selectedVaultRecord()?.site }} and verify your manager password to save it encrypted.</p>
+              <form [formGroup]="vaultEditForm" (ngSubmit)="updateVaultEntryPassword()">
+                <label class="field"><span>New site password</span><input type="password" formControlName="password" autocomplete="new-password" required></label>
+                <label class="field"><span>Manager password</span><input type="password" formControlName="managerPassword" autocomplete="current-password" required></label>
+                @if (vaultMessage()) { <p class="field-error" role="alert">{{ vaultMessage() }}</p> }
+                <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Updating…' : 'Update password' }}</button></div>
               </form>
             } @else if (vaultDialog() === 'rotate') {
               <p class="eyebrow">RE-ENCRYPT VAULT</p><h2 id="vault-dialog-title">Rotate cryptographic keys</h2>

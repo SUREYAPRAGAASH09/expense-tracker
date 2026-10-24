@@ -39,7 +39,7 @@ button { font-family: inherit; }
 .vault-table tr:last-child td { border-bottom: 0; }
 .vault-site { width: 42%; font-weight: 650; overflow-wrap: anywhere; }
 .vault-password { color: #49574f; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
-.vault-row-actions { width: 160px; white-space: nowrap; text-align: right; }
+.vault-row-actions { width: 200px; white-space: nowrap; text-align: right; }
 .vault-row-actions .icon-button { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-left: 5px; border: 1px solid #e1e8e3; border-radius: 8px; color: #34433a; background: #fff; font-size: 17px; cursor: pointer; }
 .vault-row-actions .icon-button:hover { background: #f2f6f3; }
 .vault-row-actions .vault-delete { color: #9f2929; }
