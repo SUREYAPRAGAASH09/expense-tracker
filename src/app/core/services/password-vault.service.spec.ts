@@ -64,6 +64,18 @@ describe('PasswordVaultService', () => {
     await expect(service.reveal(saved, 'incorrect manager password')).rejects.toThrow('incorrect-manager-password');
   });
 
+  it('exports all decrypted entries only after manager-password verification', async () => {
+    await service.setup(MANAGER_PASSWORD);
+    await service.add('one.example', 'secret-one', MANAGER_PASSWORD);
+    await service.add('two.example', 'secret-two', MANAGER_PASSWORD);
+
+    await expect(service.exportEntries('wrong password')).rejects.toThrow('incorrect-manager-password');
+    await expect(service.exportEntries(MANAGER_PASSWORD)).resolves.toEqual([
+      { site: 'one.example', password: 'secret-one' },
+      { site: 'two.example', password: 'secret-two' },
+    ]);
+  });
+
   it('authenticates the site name as additional data and rejects tampered ciphertext', async () => {
     await service.setup(MANAGER_PASSWORD);
     const saved = await service.add('example.com', 'site-secret', MANAGER_PASSWORD);

@@ -39,6 +39,7 @@
         <div class="section-heading">
           <div><p class="eyebrow">ENCRYPTED VAULT</p><h2 id="vault-records-title">Saved passwords</h2></div>
           <div class="vault-actions">
+            <button class="button button-secondary" type="button" (click)="openVaultExport()" [disabled]="!vaultRecords().length">Export protected PDF</button>
             <button class="button button-secondary" type="button" (click)="openVaultRotate()" [disabled]="!vaultConfigured()">Rotate cryptographic keys</button>
             <button class="button button-primary add-password-button" type="button" (click)="openVaultAdd()" aria-label="Add password"><span aria-hidden="true">+</span> Add</button>
           </div>
@@ -58,6 +59,7 @@
                     <td class="vault-password">{{ revealedPasswords()[record.id] ?? '••••••••••••' }}</td>
                     <td class="vault-row-actions">
                       <button class="icon-button" type="button" (click)="requestVaultReveal(record)" [attr.aria-label]="revealedPasswords()[record.id] ? 'Hide password for ' + record.site : 'Reveal password for ' + record.site" [title]="revealedPasswords()[record.id] ? 'Hide password' : 'Reveal password'">{{ revealedPasswords()[record.id] ? '◉' : '◌' }}</button>
+                      @if (revealedPasswords()[record.id]) { <button class="icon-button" type="button" (click)="copyVaultPassword(record)" [attr.aria-label]="'Copy password for ' + record.site" title="Copy password">▢</button> }
                       <button class="icon-button vault-delete" type="button" (click)="deleteVaultEntry(record)" [attr.aria-label]="'Delete password for ' + record.site" title="Delete">⌫</button>
                     </td>
                   </tr>
@@ -96,7 +98,7 @@
                 @if (vaultMessage()) { <p class="field-error" role="alert">{{ vaultMessage() }}</p> }
                 <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Checking…' : 'Reveal password' }}</button></div>
               </form>
-            } @else {
+            } @else if (vaultDialog() === 'rotate') {
               <p class="eyebrow">RE-ENCRYPT VAULT</p><h2 id="vault-dialog-title">Rotate cryptographic keys</h2>
               <p class="vault-dialog-copy">All entries will be re-encrypted with a new key derived from your new manager password.</p>
               <form [formGroup]="vaultRotateForm" (ngSubmit)="rotateVaultKey()">
@@ -105,6 +107,14 @@
                 <label class="field"><span>Confirm new manager password</span><input type="password" formControlName="confirmPassword" autocomplete="new-password" required></label>
                 @if (vaultMessage()) { <p class="field-error" role="alert">{{ vaultMessage() }}</p> }
                 <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Re-encrypting…' : 'Rotate keys' }}</button></div>
+              </form>
+            } @else {
+              <p class="eyebrow">AES-256 PROTECTED EXPORT</p><h2 id="vault-dialog-title">Export password backup</h2>
+              <p class="vault-dialog-copy">The PDF will require your password manager password to open. Store the exported file somewhere private.</p>
+              <form [formGroup]="vaultExportForm" (ngSubmit)="exportVaultPdf()">
+                <label class="field"><span>Manager password</span><input type="password" formControlName="password" autocomplete="current-password" required></label>
+                @if (vaultMessage() && vaultMessageType() === 'error') { <p class="field-error" role="alert">{{ vaultMessage() }}</p> }
+                <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Creating PDF…' : 'Export protected PDF' }}</button></div>
               </form>
             }
           </section>

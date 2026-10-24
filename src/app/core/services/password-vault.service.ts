@@ -55,6 +55,20 @@ export class PasswordVaultService {
     return new TextDecoder().decode(plaintext);
   }
 
+  async exportEntries(managerPassword: string): Promise<Array<{ site: string; password: string }>> {
+    const settings = await this.requireSettings();
+    const key = await this.keyForPassword(managerPassword, settings);
+    const records = await this.database.listPasswordVaultRecords();
+    return Promise.all(records.map(async (record) => {
+      const plaintext = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: new Uint8Array(record.iv), additionalData: new TextEncoder().encode(record.site) },
+        key,
+        new Uint8Array(record.ciphertext),
+      );
+      return { site: record.site, password: new TextDecoder().decode(plaintext) };
+    }));
+  }
+
   async rotate(oldPassword: string, newPassword: string): Promise<void> {
     if (newPassword.length < 12) throw new Error('weak-manager-password');
     const currentSettings = await this.requireSettings();

@@ -64,7 +64,7 @@ export class App {
   protected readonly activeView = signal<'transactions' | 'about' | 'passwords'>('transactions');
   protected readonly vaultConfigured = signal(false);
   protected readonly vaultRecords = signal<PasswordVaultRecord[]>([]);
-  protected readonly vaultDialog = signal<'setup' | 'add' | 'reveal' | 'rotate' | null>(null);
+  protected readonly vaultDialog = signal<'setup' | 'add' | 'reveal' | 'rotate' | 'export' | null>(null);
   protected readonly vaultBusy = signal(false);
   protected readonly vaultMessage = signal('');
   protected readonly vaultMessageType = signal<'success' | 'error' | ''>('');
@@ -130,6 +130,7 @@ export class App {
     newPassword: ['', [Validators.required, Validators.minLength(12)]],
     confirmPassword: ['', Validators.required],
   });
+  protected readonly vaultExportForm = this.formBuilder.group({ password: ['', Validators.required] });
 
   constructor() {
     window.addEventListener('beforeinstallprompt', (event: Event) => {
@@ -280,6 +281,67 @@ export class App {
     this.vaultDialog.set('rotate');
   }
 
+  protected openVaultExport(): void {
+    this.vaultExportForm.reset();
+    this.clearVaultMessage();
+    this.vaultDialog.set('export');
+  }
+
+  protected async copyVaultPassword(record: PasswordVaultRecord): Promise<void> {
+    const password = this.revealedPasswords()[record.id];
+    if (!password) return;
+    try {
+      await navigator.clipboard.writeText(password);
+      this.setVaultMessage(`Password copied for ${record.site}.`, 'success');
+    } catch {
+      this.setVaultMessage('Clipboard access is unavailable. Allow clipboard access or copy the revealed password manually.');
+    }
+  }
+
+  protected async exportVaultPdf(): Promise<void> {
+    const password = this.vaultExportForm.controls.password.value;
+    if (!password) { this.vaultExportForm.markAllAsTouched(); return; }
+    this.vaultBusy.set(true);
+    try {
+      const entries = await this.passwordVault.exportEntries(password);
+      if (!entries.length) {
+        this.setVaultMessage('There are no saved passwords to export.');
+        return;
+      }
+      const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
+        import('pdfmake/build/pdfmake.js'),
+        import('pdfmake/build/vfs_fonts.js'),
+      ]);
+      pdfMake.addVirtualFileSystem(pdfFonts);
+      const definition = {
+        info: { title: 'Password Manager Backup', subject: 'Encrypted password manager export' },
+        version: '1.7ext3',
+        userPassword: password,
+        content: [
+          { text: 'Password Manager Backup', style: 'title' },
+          { text: `Exported ${new Date().toLocaleString()}. This PDF is protected with your password manager password.`, style: 'note' },
+          { table: { headerRows: 1, widths: ['35%', '65%'], body: [
+            [{ text: 'Site', style: 'tableHeader' }, { text: 'Password', style: 'tableHeader' }],
+            ...entries.map((entry) => [entry.site, entry.password]),
+          ] }, layout: 'lightHorizontalLines' },
+        ],
+        styles: {
+          title: { fontSize: 20, bold: true, color: '#176b4b', margin: [0, 0, 0, 8] },
+          note: { fontSize: 9, color: '#66746c', margin: [0, 0, 0, 18] },
+          tableHeader: { bold: true, color: '#26352d', fillColor: '#eef5f0' },
+        },
+        defaultStyle: { fontSize: 10, lineHeight: 1.3 },
+        pageMargins: [42, 48, 42, 48],
+      };
+      pdfMake.createPdf(definition).download('password-manager-backup.pdf');
+      this.vaultExportForm.reset();
+      this.vaultDialog.set(null);
+      this.setVaultMessage('Encrypted password backup downloaded. Open it with your password manager password.', 'success');
+    } catch (error) {
+      this.setVaultMessage(error instanceof Error && error.message === 'incorrect-manager-password' ? 'The manager password is incorrect.' : 'The protected PDF could not be created. Please try again.');
+    } finally { this.vaultBusy.set(false); }
+  }
+
   protected async setupVault(): Promise<void> {
     const form = this.vaultSetupForm;
     if (form.invalid) { form.markAllAsTouched(); this.setVaultMessage('Choose a manager password with at least 12 characters.', 'error'); return; }
@@ -374,6 +436,7 @@ export class App {
     this.vaultEntryForm.reset();
     this.vaultRevealForm.reset();
     this.vaultRotateForm.reset();
+    this.vaultExportForm.reset();
   }
 
   private clearVaultMessage(): void { this.vaultMessage.set(''); this.vaultMessageType.set(''); }
