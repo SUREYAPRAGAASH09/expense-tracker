@@ -53,7 +53,7 @@
             <table class="vault-table">
               <thead><tr><th scope="col">Site</th><th scope="col">Password</th><th scope="col">Actions</th></tr></thead>
               <tbody>
-                @for (record of vaultRecords(); track record.id) {
+                @for (record of paginatedVaultRecords; track record.id) {
                   <tr>
                     <td class="vault-site">{{ record.site }}</td>
                     <td class="vault-password">{{ revealedPasswords()[record.id] ?? '••••••••••••' }}</td>
@@ -67,6 +67,19 @@
               </tbody>
             </table>
           </div>
+          <p class="filter-count" aria-live="polite">Showing {{ vaultPageRangeStart }}–{{ vaultPageRangeEnd }} of {{ vaultRecords().length }} saved passwords</p>
+          <nav class="pagination" aria-label="Password manager pages">
+            <label class="page-size-control"><span>Rows per page</span>
+              <select [value]="vaultPageSize()" (change)="setVaultPageSize($event)">
+                @for (size of vaultPageSizes; track size) { <option [value]="size">{{ size }}</option> }
+              </select>
+            </label>
+            <span class="page-indicator">Page {{ vaultCurrentPage() }} of {{ vaultTotalPages }}</span>
+            <div class="pagination-buttons">
+              <button class="button button-quiet" type="button" (click)="changeVaultPage(-1)" [disabled]="vaultCurrentPage() <= 1">Previous</button>
+              <button class="button button-quiet" type="button" (click)="changeVaultPage(1)" [disabled]="vaultCurrentPage() >= vaultTotalPages">Next</button>
+            </div>
+          </nav>
         }
       </section>
 
@@ -171,6 +184,7 @@
 
       <div class="button-row">
         <button class="button button-primary" type="button" (click)="exportCsv()" [disabled]="database.status() !== 'ready'">Download CSV backup</button>
+        <button class="button button-secondary" type="button" (click)="openTransactionPdfExport()" [disabled]="database.status() !== 'ready' || !transactions().length">Export transactions as PDF</button>
         <button class="button button-secondary" type="button" (click)="csvImport.click()" [disabled]="database.status() !== 'ready'">Import CSV backup</button>
       </div>
       <p class="form-hint">Choose a CSV backup exported from this app. Imported transactions are added to the transactions already on this device.</p>
@@ -382,6 +396,21 @@
       <span class="privacy-icon" aria-hidden="true">⌂</span>
       <p><strong>Your data stays on this device</strong><span>Transactions are saved in your browser. They are not sent to a server.</span></p>
     </section>
+
+    @if (transactionPdfDialog()) {
+      <div class="vault-modal-backdrop" (click)="closeTransactionPdfExport()">
+        <section class="vault-modal" role="dialog" aria-modal="true" aria-labelledby="transaction-pdf-title" (click)="$event.stopPropagation()">
+          <button class="vault-modal-close" type="button" (click)="closeTransactionPdfExport()" aria-label="Close dialog">×</button>
+          <p class="eyebrow">AES-256 PROTECTED EXPORT</p><h2 id="transaction-pdf-title">Export transaction backup</h2>
+          <p class="vault-dialog-copy">All saved transactions will be exported. The PDF will use your app lock PIN to open. A four-digit PIN is easier to guess if the PDF is stolen, so keep the file private.</p>
+          <form [formGroup]="transactionPdfPinForm" (ngSubmit)="exportTransactionsPdf()">
+            <label class="field"><span>Four-digit app lock PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" formControlName="pin" required></label>
+            @if (messageType() === 'error' && message()) { <p class="field-error" role="alert">{{ message() }}</p> }
+            <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeTransactionPdfExport()">Cancel</button><button class="button button-primary" type="submit" [disabled]="transactionPdfBusy()">{{ transactionPdfBusy() ? 'Creating PDF…' : 'Export protected PDF' }}</button></div>
+          </form>
+        </section>
+      </div>
+    }
 
     <footer>Private by design <span aria-hidden="true">·</span> Data remainds on your device</footer>
   </section>

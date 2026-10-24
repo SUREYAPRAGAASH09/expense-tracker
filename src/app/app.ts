@@ -64,6 +64,9 @@ export class App {
   protected readonly activeView = signal<'transactions' | 'about' | 'passwords'>('transactions');
   protected readonly vaultConfigured = signal(false);
   protected readonly vaultRecords = signal<PasswordVaultRecord[]>([]);
+  protected readonly vaultCurrentPage = signal(1);
+  protected readonly vaultPageSize = signal(10);
+  protected readonly vaultPageSizes = [10, 25, 50];
   protected readonly vaultDialog = signal<'setup' | 'add' | 'reveal' | 'rotate' | 'export' | null>(null);
   protected readonly vaultBusy = signal(false);
   protected readonly vaultMessage = signal('');
@@ -131,6 +134,11 @@ export class App {
     confirmPassword: ['', Validators.required],
   });
   protected readonly vaultExportForm = this.formBuilder.group({ password: ['', Validators.required] });
+  protected readonly transactionPdfDialog = signal(false);
+  protected readonly transactionPdfBusy = signal(false);
+  protected readonly transactionPdfPinForm = this.formBuilder.group({
+    pin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+  });
 
   constructor() {
     window.addEventListener('beforeinstallprompt', (event: Event) => {
@@ -256,7 +264,8 @@ export class App {
     this.revealedPasswords.set({});
     try {
       this.vaultConfigured.set(await this.passwordVault.isConfigured());
-      this.vaultRecords.set(await this.passwordVault.list());
+      this.vaultRecords.set((await this.passwordVault.list()).sort((a, b) => a.site.localeCompare(b.site)));
+      this.vaultCurrentPage.set(1);
     } catch {
       this.setVaultMessage('The password vault could not be opened in this browser.', 'error');
     }
@@ -273,6 +282,32 @@ export class App {
     this.vaultSetupForm.reset();
     this.vaultEntryForm.reset();
     this.vaultDialog.set(this.vaultConfigured() ? 'add' : 'setup');
+  }
+
+  protected get vaultTotalPages(): number {
+    return Math.max(1, Math.ceil(this.vaultRecords().length / this.vaultPageSize()));
+  }
+
+  protected get paginatedVaultRecords(): PasswordVaultRecord[] {
+    const start = (this.vaultCurrentPage() - 1) * this.vaultPageSize();
+    return this.vaultRecords().slice(start, start + this.vaultPageSize());
+  }
+
+  protected get vaultPageRangeStart(): number {
+    return this.vaultRecords().length ? (this.vaultCurrentPage() - 1) * this.vaultPageSize() + 1 : 0;
+  }
+
+  protected get vaultPageRangeEnd(): number {
+    return Math.min(this.vaultCurrentPage() * this.vaultPageSize(), this.vaultRecords().length);
+  }
+
+  protected setVaultPageSize(event: Event): void {
+    this.vaultPageSize.set(Number((event.target as HTMLSelectElement).value));
+    this.vaultCurrentPage.set(1);
+  }
+
+  protected changeVaultPage(delta: number): void {
+    this.vaultCurrentPage.update((page) => Math.min(this.vaultTotalPages, Math.max(1, page + delta)));
   }
 
   protected openVaultRotate(): void {
@@ -367,6 +402,7 @@ export class App {
     try {
       const record = await this.passwordVault.add(value.site!.trim(), value.password!, value.managerPassword!);
       this.vaultRecords.update((records) => [...records, record].sort((a, b) => a.site.localeCompare(b.site)));
+      this.vaultCurrentPage.set(this.vaultTotalPages);
       this.vaultEntryForm.reset();
       this.vaultDialog.set(null);
       this.setVaultMessage('Password saved encrypted on this device.', 'success');
@@ -424,6 +460,7 @@ export class App {
     try {
       await this.passwordVault.delete(record.id);
       this.vaultRecords.update((records) => records.filter((item) => item.id !== record.id));
+      if (this.vaultCurrentPage() > this.vaultTotalPages) this.vaultCurrentPage.set(this.vaultTotalPages);
       this.revealedPasswords.update((values) => { const next = { ...values }; delete next[record.id]; return next; });
       this.setVaultMessage('Saved password deleted.', 'success');
     } catch { this.setVaultMessage('The saved password could not be deleted.', 'error'); }
@@ -582,6 +619,81 @@ export class App {
   protected exportCsv(): void {
     this.csv.downloadTransactions(this.transactions());
     this.setMessage('CSV backup downloaded.', 'success');
+  }
+
+  protected openTransactionPdfExport(): void {
+    this.transactionPdfPinForm.reset();
+    this.transactionPdfDialog.set(true);
+    this.message.set('');
+    this.messageType.set('');
+  }
+
+  protected async exportTransactionsPdf(): Promise<void> {
+    const form = this.transactionPdfPinForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setMessage('Enter your four-digit app lock PIN.', 'error'); return; }
+    const pin = form.controls.pin.value!;
+    this.transactionPdfBusy.set(true);
+    this.message.set('');
+    this.messageType.set('');
+    try {
+      if (!(await this.database.verifyPin(pin))) {
+        this.setMessage('That app lock PIN is incorrect.', 'error');
+        form.reset();
+        return;
+      }
+      const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
+        import('pdfmake/build/pdfmake.js'),
+        import('pdfmake/build/vfs_fonts.js'),
+      ]);
+      pdfMake.addVirtualFileSystem(pdfFonts);
+      const transactionRows = this.transactions().map((item) => [
+        item.date,
+        item.transactionType,
+        item.mainCategory,
+        item.subcategory,
+        item.paymentMethod,
+        item.notes || '—',
+        `${item.transactionType === 'Expense' || item.transactionType === 'Transfer' ? '−' : '+'}₹${item.amount.toFixed(2)}`,
+      ]);
+      const definition = {
+        info: { title: 'Transaction Backup', subject: 'Encrypted transaction export' },
+        version: '1.7ext3',
+        userPassword: pin,
+        content: [
+          { text: 'Transaction Backup', style: 'title' },
+          { text: `Exported ${new Date().toLocaleString()}. This PDF is protected with your four-digit app lock PIN.`, style: 'note' },
+          { table: { headerRows: 1, widths: [55, 60, '*', '*', 65, '*', 65], body: [
+            [
+              { text: 'Date', style: 'tableHeader' }, { text: 'Type', style: 'tableHeader' },
+              { text: 'Category', style: 'tableHeader' }, { text: 'Subcategory', style: 'tableHeader' },
+              { text: 'Payment', style: 'tableHeader' }, { text: 'Description / notes', style: 'tableHeader' },
+              { text: 'Amount', style: 'tableHeader' },
+            ],
+            ...transactionRows,
+          ] }, layout: 'lightHorizontalLines' },
+        ],
+        styles: {
+          title: { fontSize: 20, bold: true, color: '#176b4b', margin: [0, 0, 0, 8] },
+          note: { fontSize: 9, color: '#66746c', margin: [0, 0, 0, 18] },
+          tableHeader: { bold: true, color: '#26352d', fillColor: '#eef5f0' },
+        },
+        defaultStyle: { fontSize: 8, lineHeight: 1.2 },
+        pageOrientation: 'landscape',
+        pageMargins: [30, 42, 30, 42],
+      };
+      pdfMake.createPdf(definition).download('transaction-backup.pdf');
+      this.transactionPdfPinForm.reset();
+      this.transactionPdfDialog.set(false);
+      this.setMessage('Password-protected transaction PDF downloaded.', 'success');
+    } catch {
+      this.setMessage('The protected transaction PDF could not be created. Please try again.', 'error');
+    } finally { this.transactionPdfBusy.set(false); }
+  }
+
+  protected closeTransactionPdfExport(): void {
+    if (this.transactionPdfBusy()) return;
+    this.transactionPdfDialog.set(false);
+    this.transactionPdfPinForm.reset();
   }
 
   protected get transactionYears(): string[] {
