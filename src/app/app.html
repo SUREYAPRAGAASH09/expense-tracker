@@ -28,6 +28,89 @@
         </div>
       </section>
     </section>
+  } @else if (activeView() === 'passwords') {
+    <section class="workspace password-workspace" aria-labelledby="password-manager-title">
+      <header class="page-header">
+        <div class="brand-mark" aria-hidden="true">🔐</div>
+        <div><p class="eyebrow">PRIVATE ON THIS DEVICE</p><h1 id="password-manager-title">Password Manager</h1><p class="subtitle">Site passwords are encrypted before they are saved.</p></div>
+        <button class="button button-quiet" type="button" (click)="backToTransactions()">Back to transactions</button>
+      </header>
+      <section class="form-card password-vault-card" aria-labelledby="vault-records-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">ENCRYPTED VAULT</p><h2 id="vault-records-title">Saved passwords</h2></div>
+          <div class="vault-actions">
+            <button class="button button-secondary" type="button" (click)="openVaultRotate()" [disabled]="!vaultConfigured()">Rotate cryptographic keys</button>
+            <button class="button button-primary add-password-button" type="button" (click)="openVaultAdd()" aria-label="Add password"><span aria-hidden="true">+</span> Add</button>
+          </div>
+        </div>
+        <p class="form-hint vault-security-note">Your manager password is separate from the app PIN. If you forget it, saved passwords cannot be recovered. Use a unique passphrase of at least 12 characters.</p>
+        @if (vaultMessage()) { <p class="notice" [class.notice-error]="vaultMessageType() === 'error'" [class.notice-success]="vaultMessageType() === 'success'" role="status">{{ vaultMessage() }}</p> }
+        @if (!vaultRecords().length) {
+          <p class="empty-vault">No saved passwords yet. Select <strong>Add</strong> to create your first encrypted entry.</p>
+        } @else {
+          <div class="table-scroll vault-table-scroll">
+            <table class="vault-table">
+              <thead><tr><th scope="col">Site</th><th scope="col">Password</th><th scope="col">Actions</th></tr></thead>
+              <tbody>
+                @for (record of vaultRecords(); track record.id) {
+                  <tr>
+                    <td class="vault-site">{{ record.site }}</td>
+                    <td class="vault-password">{{ revealedPasswords()[record.id] ?? '••••••••••••' }}</td>
+                    <td class="vault-row-actions">
+                      <button class="icon-button" type="button" (click)="requestVaultReveal(record)" [attr.aria-label]="revealedPasswords()[record.id] ? 'Hide password for ' + record.site : 'Reveal password for ' + record.site" [title]="revealedPasswords()[record.id] ? 'Hide password' : 'Reveal password'">{{ revealedPasswords()[record.id] ? '◉' : '◌' }}</button>
+                      <button class="icon-button vault-delete" type="button" (click)="deleteVaultEntry(record)" [attr.aria-label]="'Delete password for ' + record.site" title="Delete">⌫</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      @if (vaultDialog()) {
+        <div class="vault-modal-backdrop" (click)="closeVaultDialog()">
+          <section class="vault-modal" role="dialog" aria-modal="true" [attr.aria-labelledby]="'vault-dialog-title'" (click)="$event.stopPropagation()">
+            <button class="vault-modal-close" type="button" (click)="closeVaultDialog()" aria-label="Close dialog">×</button>
+            @if (vaultDialog() === 'setup') {
+              <p class="eyebrow">FIRST TIME SETUP</p><h2 id="vault-dialog-title">Create manager password</h2>
+              <p class="vault-dialog-copy">This password encrypts your vault. It cannot be reset if forgotten.</p>
+              <form [formGroup]="vaultSetupForm" (ngSubmit)="setupVault()">
+                <label class="field"><span>Manager password</span><input type="password" formControlName="password" autocomplete="new-password" minlength="12" required></label>
+                <label class="field"><span>Confirm manager password</span><input type="password" formControlName="confirmPassword" autocomplete="new-password" required></label>
+                <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Setting up…' : 'Create manager password' }}</button></div>
+              </form>
+            } @else if (vaultDialog() === 'add') {
+              <p class="eyebrow">ENCRYPTED ENTRY</p><h2 id="vault-dialog-title">Add a site password</h2>
+              <form [formGroup]="vaultEntryForm" (ngSubmit)="addVaultEntry()">
+                <label class="field"><span>Site name</span><input type="text" formControlName="site" autocomplete="off" required></label>
+                <label class="field"><span>Site password</span><input type="password" formControlName="password" autocomplete="new-password" required></label>
+                <label class="field"><span>Manager password</span><input type="password" formControlName="managerPassword" autocomplete="current-password" required></label>
+                <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Encrypting…' : 'Save encrypted' }}</button></div>
+              </form>
+            } @else if (vaultDialog() === 'reveal') {
+              <p class="eyebrow">VERIFY TO REVEAL</p><h2 id="vault-dialog-title">Show saved password</h2>
+              <p class="vault-dialog-copy">Enter your manager password to reveal the password for {{ selectedVaultRecord()?.site }}.</p>
+              <form [formGroup]="vaultRevealForm" (ngSubmit)="revealVaultEntry()">
+                <label class="field"><span>Manager password</span><input type="password" formControlName="password" autocomplete="current-password" required></label>
+                @if (vaultMessage()) { <p class="field-error" role="alert">{{ vaultMessage() }}</p> }
+                <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Checking…' : 'Reveal password' }}</button></div>
+              </form>
+            } @else {
+              <p class="eyebrow">RE-ENCRYPT VAULT</p><h2 id="vault-dialog-title">Rotate cryptographic keys</h2>
+              <p class="vault-dialog-copy">All entries will be re-encrypted with a new key derived from your new manager password.</p>
+              <form [formGroup]="vaultRotateForm" (ngSubmit)="rotateVaultKey()">
+                <label class="field"><span>Current manager password</span><input type="password" formControlName="currentPassword" autocomplete="current-password" required></label>
+                <label class="field"><span>New manager password (12+ characters)</span><input type="password" formControlName="newPassword" autocomplete="new-password" minlength="12" required></label>
+                <label class="field"><span>Confirm new manager password</span><input type="password" formControlName="confirmPassword" autocomplete="new-password" required></label>
+                @if (vaultMessage()) { <p class="field-error" role="alert">{{ vaultMessage() }}</p> }
+                <div class="form-actions"><button class="button button-quiet" type="button" (click)="closeVaultDialog()">Cancel</button><button class="button button-primary" type="submit" [disabled]="vaultBusy()">{{ vaultBusy() ? 'Re-encrypting…' : 'Rotate keys' }}</button></div>
+              </form>
+            }
+          </section>
+        </div>
+      }
+    </section>
   } @else {
   <section class="workspace" aria-labelledby="page-title">
     <header class="page-header">
@@ -42,6 +125,7 @@
           <summary class="button button-quiet">Menu</summary>
           <div class="app-menu-items">
             <button type="button" (click)="openAbout(); appMenu.open = false">About</button>
+            <button type="button" (click)="openPasswordManager(); appMenu.open = false">Password Manager</button>
             <button type="button" (click)="startTour(); appMenu.open = false">Take a tour</button>
             <button type="button" (click)="showPinChange(); appMenu.open = false">Change PIN</button>
             <button type="button" (click)="lockApp(); appMenu.open = false">Lock app</button>

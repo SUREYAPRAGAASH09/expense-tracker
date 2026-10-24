@@ -6,6 +6,8 @@ import { TransactionDatabaseService } from './core/services/transaction-database
 import { CATEGORY_OPTIONS, PAYMENT_METHODS } from './core/constants/transaction-options';
 import { TRANSACTION_TYPES, Transaction, TransactionType } from './core/models/transaction.model';
 import { TransactionRecord } from './core/models/transaction-record.model';
+import { PasswordVaultRecord } from './core/services/transaction-database.service';
+import { PasswordVaultService } from './core/services/password-vault.service';
 
 interface InstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -21,6 +23,7 @@ interface InstallPromptEvent extends Event {
 export class App {
   protected readonly csv = inject(CsvFileService);
   protected readonly database = inject(TransactionDatabaseService);
+  protected readonly passwordVault = inject(PasswordVaultService);
   protected readonly transactions = signal<TransactionRecord[]>([]);
   protected readonly editingTransaction = signal<TransactionRecord | null>(null);
   protected readonly categoryOptions = CATEGORY_OPTIONS;
@@ -58,7 +61,15 @@ export class App {
   protected readonly securityMessage = signal('');
   protected readonly securityMessageType = signal<'success' | 'error' | ''>('');
   protected readonly recoveryQuestion = signal('');
-  protected readonly activeView = signal<'transactions' | 'about'>('transactions');
+  protected readonly activeView = signal<'transactions' | 'about' | 'passwords'>('transactions');
+  protected readonly vaultConfigured = signal(false);
+  protected readonly vaultRecords = signal<PasswordVaultRecord[]>([]);
+  protected readonly vaultDialog = signal<'setup' | 'add' | 'reveal' | 'rotate' | null>(null);
+  protected readonly vaultBusy = signal(false);
+  protected readonly vaultMessage = signal('');
+  protected readonly vaultMessageType = signal<'success' | 'error' | ''>('');
+  protected readonly selectedVaultRecord = signal<PasswordVaultRecord | null>(null);
+  protected readonly revealedPasswords = signal<Record<number, string>>({});
   protected readonly submitAttempted = signal(false);
   protected readonly installPrompt = signal<InstallPromptEvent | null>(null);
   protected readonly tourActive = signal(false);
@@ -103,6 +114,21 @@ export class App {
     currentPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
     newPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
     confirmPin: ['', [Validators.required, Validators.pattern(/^\d{4}$/)]],
+  });
+  protected readonly vaultSetupForm = this.formBuilder.group({
+    password: ['', [Validators.required, Validators.minLength(12)]],
+    confirmPassword: ['', Validators.required],
+  });
+  protected readonly vaultEntryForm = this.formBuilder.group({
+    site: ['', [Validators.required, Validators.maxLength(160)]],
+    password: ['', Validators.required],
+    managerPassword: ['', Validators.required],
+  });
+  protected readonly vaultRevealForm = this.formBuilder.group({ password: ['', Validators.required] });
+  protected readonly vaultRotateForm = this.formBuilder.group({
+    currentPassword: ['', Validators.required],
+    newPassword: ['', [Validators.required, Validators.minLength(12)]],
+    confirmPassword: ['', Validators.required],
   });
 
   constructor() {
@@ -223,14 +249,142 @@ export class App {
     this.activeView.set('about');
   }
 
+  protected async openPasswordManager(): Promise<void> {
+    this.activeView.set('passwords');
+    this.vaultMessage.set('');
+    this.revealedPasswords.set({});
+    try {
+      this.vaultConfigured.set(await this.passwordVault.isConfigured());
+      this.vaultRecords.set(await this.passwordVault.list());
+    } catch {
+      this.setVaultMessage('The password vault could not be opened in this browser.', 'error');
+    }
+  }
+
   protected backToTransactions(): void {
+    this.revealedPasswords.set({});
+    this.vaultDialog.set(null);
     this.activeView.set('transactions');
   }
+
+  protected openVaultAdd(): void {
+    this.clearVaultMessage();
+    this.vaultSetupForm.reset();
+    this.vaultEntryForm.reset();
+    this.vaultDialog.set(this.vaultConfigured() ? 'add' : 'setup');
+  }
+
+  protected openVaultRotate(): void {
+    this.vaultRotateForm.reset();
+    this.clearVaultMessage();
+    this.vaultDialog.set('rotate');
+  }
+
+  protected async setupVault(): Promise<void> {
+    const form = this.vaultSetupForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setVaultMessage('Choose a manager password with at least 12 characters.', 'error'); return; }
+    const value = form.getRawValue();
+    if (value.password !== value.confirmPassword) { this.setVaultMessage('The manager password entries do not match.', 'error'); return; }
+    this.vaultBusy.set(true);
+    try {
+      await this.passwordVault.setup(value.password!);
+      this.vaultConfigured.set(true);
+      this.vaultSetupForm.reset();
+      this.vaultDialog.set('add');
+      this.setVaultMessage('Password manager is ready. Keep this password safe; it cannot be recovered if lost.', 'success');
+    } catch {
+      this.setVaultMessage('Password manager setup failed. Use the app over HTTPS in a supported browser.', 'error');
+    } finally { this.vaultBusy.set(false); }
+  }
+
+  protected async addVaultEntry(): Promise<void> {
+    const form = this.vaultEntryForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setVaultMessage('Enter the site, its password, and your manager password.', 'error'); return; }
+    const value = form.getRawValue();
+    this.vaultBusy.set(true);
+    try {
+      const record = await this.passwordVault.add(value.site!.trim(), value.password!, value.managerPassword!);
+      this.vaultRecords.update((records) => [...records, record].sort((a, b) => a.site.localeCompare(b.site)));
+      this.vaultEntryForm.reset();
+      this.vaultDialog.set(null);
+      this.setVaultMessage('Password saved encrypted on this device.', 'success');
+    } catch (error) {
+      this.setVaultMessage(error instanceof Error && error.message === 'incorrect-manager-password' ? 'The manager password is incorrect.' : 'The password could not be saved.', 'error');
+    } finally { this.vaultBusy.set(false); }
+  }
+
+  protected requestVaultReveal(record: PasswordVaultRecord): void {
+    if (this.revealedPasswords()[record.id]) {
+      this.revealedPasswords.update((values) => { const next = { ...values }; delete next[record.id]; return next; });
+      return;
+    }
+    this.selectedVaultRecord.set(record);
+    this.vaultRevealForm.reset();
+    this.clearVaultMessage();
+    this.vaultDialog.set('reveal');
+  }
+
+  protected async revealVaultEntry(): Promise<void> {
+    const record = this.selectedVaultRecord();
+    const password = this.vaultRevealForm.controls.password.value;
+    if (!record || !password) { this.vaultRevealForm.markAllAsTouched(); return; }
+    this.vaultBusy.set(true);
+    try {
+      const revealed = await this.passwordVault.reveal(record, password);
+      this.revealedPasswords.update((values) => ({ ...values, [record.id]: revealed }));
+      this.vaultRevealForm.reset();
+      this.vaultDialog.set(null);
+    } catch (error) {
+      this.setVaultMessage(error instanceof Error && error.message === 'incorrect-manager-password' ? 'The manager password is incorrect.' : 'This saved password could not be decrypted.');
+    } finally { this.vaultBusy.set(false); }
+  }
+
+  protected async rotateVaultKey(): Promise<void> {
+    const form = this.vaultRotateForm;
+    if (form.invalid) { form.markAllAsTouched(); this.setVaultMessage('Complete all fields. The new manager password must be at least 12 characters.', 'error'); return; }
+    const value = form.getRawValue();
+    if (value.newPassword !== value.confirmPassword) { this.setVaultMessage('The new manager password entries do not match.', 'error'); return; }
+    if (value.currentPassword === value.newPassword) { this.setVaultMessage('Choose a new manager password different from the current one.', 'error'); return; }
+    this.vaultBusy.set(true);
+    try {
+      await this.passwordVault.rotate(value.currentPassword!, value.newPassword!);
+      this.vaultRotateForm.reset();
+      this.vaultDialog.set(null);
+      this.revealedPasswords.set({});
+      this.setVaultMessage('Cryptographic keys rotated and all saved passwords re-encrypted.', 'success');
+    } catch (error) {
+      this.setVaultMessage(error instanceof Error && error.message === 'incorrect-manager-password' ? 'The current manager password is incorrect.' : 'Key rotation failed. Existing vault records were kept unchanged.');
+    } finally { this.vaultBusy.set(false); }
+  }
+
+  protected async deleteVaultEntry(record: PasswordVaultRecord): Promise<void> {
+    if (!window.confirm(`Delete the saved password for ${record.site}? This cannot be undone.`)) return;
+    try {
+      await this.passwordVault.delete(record.id);
+      this.vaultRecords.update((records) => records.filter((item) => item.id !== record.id));
+      this.revealedPasswords.update((values) => { const next = { ...values }; delete next[record.id]; return next; });
+      this.setVaultMessage('Saved password deleted.', 'success');
+    } catch { this.setVaultMessage('The saved password could not be deleted.', 'error'); }
+  }
+
+  protected closeVaultDialog(): void {
+    if (this.vaultBusy()) return;
+    this.vaultDialog.set(null);
+    this.vaultSetupForm.reset();
+    this.vaultEntryForm.reset();
+    this.vaultRevealForm.reset();
+    this.vaultRotateForm.reset();
+  }
+
+  private clearVaultMessage(): void { this.vaultMessage.set(''); this.vaultMessageType.set(''); }
+  private setVaultMessage(message: string, type: 'success' | 'error' = 'error'): void { this.vaultMessage.set(message); this.vaultMessageType.set(type); }
 
   protected lockApp(): void {
     this.tourActive.set(false);
     this.tourSpotlight.set(null);
     this.transactions.set([]);
+    this.revealedPasswords.set({});
+    this.vaultDialog.set(null);
     this.loginPinForm.reset();
     this.changePinForm.reset();
     this.clearSecurityMessage();
