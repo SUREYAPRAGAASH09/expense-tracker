@@ -641,12 +641,17 @@ export class App {
         form.reset();
         return;
       }
+      const matchingTransactions = this.filteredTransactions;
+      if (!matchingTransactions.length) {
+        this.setMessage('No transactions match the current search and filters.', 'error');
+        return;
+      }
       const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
         import('pdfmake/build/pdfmake.js'),
         import('pdfmake/build/vfs_fonts.js'),
       ]);
       pdfMake.addVirtualFileSystem(pdfFonts);
-      const transactionRows = this.transactions().map((item) => [
+      const transactionRows = matchingTransactions.map((item) => [
         item.date,
         item.transactionType,
         item.mainCategory,
@@ -655,13 +660,19 @@ export class App {
         item.notes || '—',
         `${item.transactionType === 'Expense' || item.transactionType === 'Transfer' ? '−' : '+'}₹${item.amount.toFixed(2)}`,
       ]);
+      const selectedFilters = this.getTransactionExportFilters();
       const definition = {
         info: { title: 'Transaction Backup', subject: 'Encrypted transaction export' },
         version: '1.7ext3',
         userPassword: pin,
         content: [
           { text: 'Transaction Backup', style: 'title' },
-          { text: `Exported ${new Date().toLocaleString()}. This PDF is protected with your four-digit app lock PIN.`, style: 'note' },
+          { text: `Exported ${new Date().toLocaleString()}. ${matchingTransactions.length} matching transaction${matchingTransactions.length === 1 ? '' : 's'}. This PDF is protected with your four-digit app lock PIN.`, style: 'note' },
+          { text: 'Selected filters', style: 'sectionTitle' },
+          { table: { widths: [120, '*'], body: selectedFilters.map(([label, value]) => [
+            { text: label, bold: true }, value,
+          ]) }, layout: 'noBorders' },
+          { text: 'Matching transactions', style: 'sectionTitle' },
           { table: { headerRows: 1, widths: [55, 60, '*', '*', 65, '*', 65], body: [
             [
               { text: 'Date', style: 'tableHeader' }, { text: 'Type', style: 'tableHeader' },
@@ -675,6 +686,7 @@ export class App {
         styles: {
           title: { fontSize: 20, bold: true, color: '#176b4b', margin: [0, 0, 0, 8] },
           note: { fontSize: 9, color: '#66746c', margin: [0, 0, 0, 18] },
+          sectionTitle: { fontSize: 12, bold: true, color: '#26352d', margin: [0, 14, 0, 7] },
           tableHeader: { bold: true, color: '#26352d', fillColor: '#eef5f0' },
         },
         defaultStyle: { fontSize: 8, lineHeight: 1.2 },
@@ -684,7 +696,7 @@ export class App {
       pdfMake.createPdf(definition).download('transaction-backup.pdf');
       this.transactionPdfPinForm.reset();
       this.transactionPdfDialog.set(false);
-      this.setMessage('Password-protected transaction PDF downloaded.', 'success');
+      this.setMessage(`Password-protected PDF downloaded with ${matchingTransactions.length} matching transaction${matchingTransactions.length === 1 ? '' : 's'}.`, 'success');
     } catch {
       this.setMessage('The protected transaction PDF could not be created. Please try again.', 'error');
     } finally { this.transactionPdfBusy.set(false); }
@@ -694,6 +706,24 @@ export class App {
     if (this.transactionPdfBusy()) return;
     this.transactionPdfDialog.set(false);
     this.transactionPdfPinForm.reset();
+  }
+
+  private getTransactionExportFilters(): Array<[string, string]> {
+    const dateDescription = this.dateFilter() === 'all'
+      ? 'All dates'
+      : this.dateFilter() === 'year'
+        ? this.selectedYear()
+        : this.dateFilter() === 'month'
+          ? `${this.months.find((month) => month.value === this.selectedMonth())?.label ?? this.selectedMonth()} ${this.selectedYear()}`
+          : `${this.customStartDate() || 'Any start'} to ${this.customEndDate() || 'Any end'}`;
+    return [
+      ['Date range', dateDescription],
+      ['Transaction type', this.transactionTypeFilter() === 'all' ? 'All types' : this.transactionTypeFilter()],
+      ['Category', this.categoryFilter() === 'all' ? 'All categories' : this.categoryFilter()],
+      ['Subcategory', this.subcategoryFilter() === 'all' ? 'All subcategories' : this.subcategoryFilter()],
+      ['Payment method', this.paymentMethodFilter() === 'all' ? 'All payment methods' : this.paymentMethodFilter()],
+      ['Description search', this.descriptionSearch().trim() || 'No search text'],
+    ];
   }
 
   protected get transactionYears(): string[] {

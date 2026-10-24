@@ -184,7 +184,7 @@
 
       <div class="button-row">
         <button class="button button-primary" type="button" (click)="exportCsv()" [disabled]="database.status() !== 'ready'">Download CSV backup</button>
-        <button class="button button-secondary" type="button" (click)="openTransactionPdfExport()" [disabled]="database.status() !== 'ready' || !transactions().length">Export transactions as PDF</button>
+        <button class="button button-secondary" type="button" (click)="openTransactionPdfExport()" [disabled]="database.status() !== 'ready' || !filteredTransactions.length">Export transactions as PDF</button>
         <button class="button button-secondary" type="button" (click)="csvImport.click()" [disabled]="database.status() !== 'ready'">Import CSV backup</button>
       </div>
       <p class="form-hint">Choose a CSV backup exported from this app. Imported transactions are added to the transactions already on this device.</p>
@@ -402,7 +402,7 @@
         <section class="vault-modal" role="dialog" aria-modal="true" aria-labelledby="transaction-pdf-title" (click)="$event.stopPropagation()">
           <button class="vault-modal-close" type="button" (click)="closeTransactionPdfExport()" aria-label="Close dialog">×</button>
           <p class="eyebrow">AES-256 PROTECTED EXPORT</p><h2 id="transaction-pdf-title">Export transaction backup</h2>
-          <p class="vault-dialog-copy">All saved transactions will be exported. The PDF will use your app lock PIN to open. A four-digit PIN is easier to guess if the PDF is stolen, so keep the file private.</p>
+          <p class="vault-dialog-copy">All transactions matching the current search and filters will be exported, across every table page. The PDF will include the selected filters and use your app lock PIN to open. A four-digit PIN is easier to guess if the PDF is stolen, so keep the file private.</p>
           <form [formGroup]="transactionPdfPinForm" (ngSubmit)="exportTransactionsPdf()">
             <label class="field"><span>Four-digit app lock PIN</span><input type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" formControlName="pin" required></label>
             @if (messageType() === 'error' && message()) { <p class="field-error" role="alert">{{ message() }}</p> }
